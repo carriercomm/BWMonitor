@@ -9,8 +9,8 @@ use warnings;
 use IO::File;
 use IO::Socket::INET;
 
-use ProtocolCommand;
-use Logger;
+use BWMonitor::ProtocolCommand;
+use BWMonitor::Logger;
 
 sub new {
    my $class = shift;
@@ -27,10 +27,10 @@ sub new {
 sub write_rand {
    my $self     = shift;
    my $bytes    = shift;
-   my $buf_size = shift || ProtocolCommand::BUF_SIZE;
+   my $buf_size = shift || BWMonitor::ProtocolCommand::BUF_SIZE;
    my ($read, $written, $buf, $ret);
 
-   my $t_start = Logger->t_start;
+   my $t_start = BWMonitor::Logger->t_start;
    while ($written <= $bytes) {
       $ret = $self->{urnd_fh}->read($buf, $buf_size);
       if ($ret && $ret > 0) {
@@ -47,7 +47,7 @@ sub write_rand {
          last;
       }
    }
-   my $t_elapsed = Logger->t_stop($t_start);
+   my $t_elapsed = BWMonitor::Logger->t_stop($t_start);
    return wantarray ? ($written, $t_elapsed) : $written;
 }
 

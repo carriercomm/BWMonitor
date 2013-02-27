@@ -9,18 +9,18 @@ use warnings;
 
 use IO::Socket::INET;
 
-use ProtocolCommand;
-use Logger;
-use Producer;
-use Consumer;
+use BWMonitor::ProtocolCommand;
+use BWMonitor::Logger;
+use BWMonitor::Producer;
+use BWMonitor::Consumer;
 
 sub new {
    my $class = shift;
    my $self  = {
       remote_host => shift,
       remote_port => shift,
-      sample_size => shift || ProtocolCommand::SAMPLE_SIZE,
-      buf_size    => shift || ProtocolCommand::BUF_SIZE,
+      sample_size => shift || BWMonitor::ProtocolCommand::SAMPLE_SIZE,
+      buf_size    => shift || BWMonitor::ProtocolCommand::BUF_SIZE,
    };
 }
 

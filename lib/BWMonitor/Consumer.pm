@@ -8,8 +8,8 @@ use strict;
 use warnings;
 use IO::Socket::INET;
 
-use ProtocolCommand;
-use Logger;
+use BWMonitor::ProtocolCommand;
+use BWMonitor::Logger;
 
 sub new {
    my $class = shift;
@@ -21,11 +21,11 @@ sub new {
 
 sub read_rand {
    my $self     = shift;
-   my $bytes    = shift;
-   my $buf_size = shift || ProtocolCommand::BUF_SIZE;
+   my $bytes    = shift || BWMonitor::ProtocolCommand::SAMPLE_SIZE;
+   my $buf_size = shift || BWMonitor::ProtocolCommand::BUF_SIZE;
    my ($read, $buf, $ret);
 
-   my $t_start = Logger->t_start;
+   my $t_start = BWMonitor::Logger->t_start;
    while ($read <= $bytes) {
       $ret = $self->{sock_fh}->recv($buf, $buf_size);
       if ($ret > 0) {
@@ -35,7 +35,7 @@ sub read_rand {
          last;
       }
    }
-   my $t_elapsed = Logger->t_stop($t_start);
+   my $t_elapsed = BWMonitor::Logger->t_stop($t_start);
    return wantarray ? ($read, $t_elapsed) : $read;
 }
 
