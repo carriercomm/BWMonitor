@@ -13,9 +13,9 @@ use BWMonitor::Logger;
 
 sub new {
    my $class = shift;
-   my $self = { sock_fh => shift, };
+   my $self = { sock_fh => shift, };    # for reading, eg. client
    return unless (defined($self->{sock_fh}));
-   $self->{sock_fh}->binmode();
+   binmode($self->{sock_fh});
    return bless($self, $class);
 }
 
@@ -23,17 +23,13 @@ sub read_rand {
    my $self     = shift;
    my $bytes    = shift || BWMonitor::ProtocolCommand::SAMPLE_SIZE;
    my $buf_size = shift || BWMonitor::ProtocolCommand::BUF_SIZE;
-   my ($read, $buf, $ret);
+   my ($read, $buf, $ret) = (0, undef, 0);
 
    my $t_start = BWMonitor::Logger->t_start;
-   while ($read <= $bytes) {
-      $ret = $self->{sock_fh}->recv($buf, $buf_size);
-      if ($ret > 0) {
-         $read += $ret;
-      }
-      else {
-         last;
-      }
+   while ($read < $bytes) {
+      $self->{sock_fh}->recv($buf, $buf_size);
+      $ret = length($buf);
+      $read += $ret if ($ret);
    }
    my $t_elapsed = BWMonitor::Logger->t_stop($t_start);
    return wantarray ? ($read, $t_elapsed) : $read;

@@ -6,21 +6,56 @@ use warnings;
 use Test::More;
 use IO::Socket::INET;
 use BWMonitor::ProtocolCommand;
+use BWMonitor::Consumer;
 
 BEGIN {
    use_ok('BWMonitor::Consumer');
 }
 require_ok('BWMonitor::Consumer');
 
-my $s = IO::Socket::INET->new(
-   Proto     => 'udp',
-   LocalAddr => '127.0.0.1',
-   LocalPort => BWMonitor::ProtocolCommand::DATA_PORT,
-   Timeout   => BWMonitor::ProtocolCommand::TIMEOUT,
-) or die($!);
+my $kidpid;
+defined($kidpid = fork()) or die("Can't fork: $!");
 
-my $data_size = BWMonitor::ProtocolCommand::SAMPLE_SIZE;
+if ($kidpid) {    # parent
+   # Server
+   my $ss = IO::Socket::INET->new(
+      Proto     => 'udp',
+      LocalAddr => '127.0.0.1',
+      LocalPort => BWMonitor::ProtocolCommand::DATA_PORT,
+      Timeout   => BWMonitor::ProtocolCommand::TIMEOUT,
+   ) or die($!);
 
-my c = BWMonitor::Consumer->new();
+   binmode($ss);
+   my $buf = 0b0000;
+   while ($buf != 0b1000) {
+      $ss->recv($buf, BWMonitor::ProtocolCommand::BUF_SIZE);
+      $ss->send('0' x BWMonitor::ProtocolCommand::BUF_SIZE);
+   }
+   close($ss);
+   done_testing();
+}
+else {    # child
+   # Client
+   #sleep(5);
+   my $cs = IO::Socket::INET->new(
+      Proto    => 'udp',
+      PeerAddr => '127.0.0.1',
+      PeerPort => BWMonitor::ProtocolCommand::DATA_PORT,
+      Timeout  => BWMonitor::ProtocolCommand::TIMEOUT,
+   ) or die($!);
+   my $c = BWMonitor::Consumer->new($cs);
+   ok(defined($c), 'new() created an instance of Consumer');
+   ok($c->isa('BWMonitor::Consumer'), 'Instance is correct class');
 
-done_testing();
+   $cs->send(0b0000);
+   my ($read, $time) = $c->read_rand();
+   print("Bytes read: $read, time: $time\n");
+   
+
+   undef($c);   # will also close the socket
+   done_testing();
+}
+
+
+#my c = BWMonitor::Consumer->new();
+
