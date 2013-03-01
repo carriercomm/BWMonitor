@@ -50,9 +50,9 @@ if ($kidpid == 0) {    # child
    $client_data_socket->send(0x0);  # kick the connection alive
 
    my ($read, $elapsed) = $cc->read_rand(BWMonitor::ProtocolCommand::SAMPLE_SIZE);
+   print($client_control_socket "QUIT\n");
    printf("Read %d bytes in %f seconds (%f)\n", $read, $elapsed, ($read/$elapsed));
    is(BWMonitor::ProtocolCommand::SAMPLE_SIZE, $read, "Got the requested data size back");
-   print($client_control_socket "QUIT\n");
 
    close($client_control_socket);
    undef($cc);
