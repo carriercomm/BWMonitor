@@ -9,8 +9,10 @@ use warnings;
 
 use Time::HiRes;
 
+my $_singleton;
+
 sub new {
-   return bless({[@_]}, shift);
+   return $_singleton //= bless({[@_]}, shift);
 }
 
 sub t_start {
@@ -22,6 +24,19 @@ sub t_stop {
    my $self  = shift;
    my $start = shift;
    return Time::HiRes::tv_interval($start);
+}
+
+sub log_transfer {
+   my $self    = shift;
+   my $bytes   = shift;
+   my $seconds = shift;
+   my $peer    = shift;
+
+   my $bps = ($bytes * 8) / $seconds;
+   my $mbps = $bps / 1000 / 1000;
+
+   # gotta do something else here later
+   printf("%s->%s: %d Mbps to %s\n", __PACKAGE__, 'log_transfer()', $mbps, $peer);
 }
 
 1;

@@ -33,7 +33,7 @@ sub write_rand {
    my ($read, $written, $buf, $ret) = (0, 0, undef, 0);
 
    my $t_start = BWMonitor::Logger->t_start;
-   $self->{sock_fh}->recv($buf, $buf_size); # hack?
+   $self->{sock_fh}->recv($buf, $buf_size); # hack, must do one recv to get peer addr
    while ($written <= $bytes) {
       $ret = $self->{urnd_fh}->read($buf, $buf_size);
       if ($ret && $ret > 0) {

@@ -7,6 +7,7 @@ package BWMonitor::Consumer;
 use strict;
 use warnings;
 use IO::Socket::INET;
+#use Time::HiRes;
 
 use BWMonitor::ProtocolCommand;
 use BWMonitor::Logger;
@@ -30,9 +31,20 @@ sub read_rand {
       $self->{sock_fh}->recv($buf, $buf_size);
       $ret = length($buf);
       $read += $ret if ($ret);
+      #Time::HiRes::usleep(1000);
    }
    my $t_elapsed = BWMonitor::Logger->t_stop($t_start);
    return wantarray ? ($read, $t_elapsed) : $read;
+}
+
+sub send {
+   my $self = shift;
+   return $self->{sock_fh}->send(@_);
+}
+
+sub init {
+   my $self = shift;
+   return $self->send(0x0);
 }
 
 sub DESTROY {
