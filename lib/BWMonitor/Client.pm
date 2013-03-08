@@ -7,12 +7,12 @@ package BWMonitor::Client;
 use strict;
 use warnings;
 
-use IO::Socket::INET;
+#use IO::Socket::INET;
 
-use BWMonitor::ProtocolCommand;
-use BWMonitor::Logger;
-use BWMonitor::Producer;
-use BWMonitor::Consumer;
+#use BWMonitor::ProtocolCommand;
+#use BWMonitor::Logger;
+#use BWMonitor::Producer;
+#use BWMonitor::Consumer;
 
 sub new {
    my $class = shift;

@@ -12,7 +12,7 @@ use Time::HiRes;
 my $_singleton;
 
 sub new {
-   return $_singleton //= bless({[@_]}, shift);
+   return $_singleton //= bless({}, shift);
 }
 
 sub t_start {

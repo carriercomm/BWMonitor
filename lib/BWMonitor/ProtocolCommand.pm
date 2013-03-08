@@ -20,6 +20,7 @@ use constant {
    BUF_SIZE    => 4096,
    SAMPLE_SIZE => 1_048_576,    # 1MB
    MAGIC       => 0x0DDEE,
+   HANDSHAKE   => 0x0666,
 };
 
 use constant {
@@ -45,6 +46,7 @@ use constant {
    Q_HELLO => qr/^_HELLO\s+(\d+)/,
    Q_QUIT  => '_QUIT',
    A_OK    => '_OK',
+   A_NOK   => '_NOT_OK',
 };
 
 # helper subs to make generating correctly formatted questions/answers easier
