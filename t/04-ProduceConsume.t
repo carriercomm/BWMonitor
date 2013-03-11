@@ -6,6 +6,7 @@ use warnings;
 use Test::More;
 use IO::Socket::INET;
 use POSIX ();
+use IO::File;
 use BWMonitor::ProtocolCommand;
 use BWMonitor::Producer;
 use BWMonitor::Consumer;
@@ -46,53 +47,57 @@ if ($kidpid == 0) {
       Proto    => $prot_c,
       Timeout  => $pc->TIMEOUT
    ) or die($!);
-   my $client_data_socket = IO::Socket::INET->new(
-      PeerAddr => $host,
-      PeerPort => $port_d,
-      Proto    => $prot_d,
-      Timeout  => $pc->TIMEOUT,
-      Type     => SOCK_DGRAM,
-   ) or die($!);
 
-   my $cc = new_ok('BWMonitor::Consumer' => [ $client_data_socket, $logger, $pc ]);
    my $data_size = $pc->SAMPLE_SIZE;
    my $buf_size  = $pc->BUF_SIZE;
-   my $send      = sub { print($client_control_socket, @_, "\n"); };
+   my $send      = sub { print($client_control_socket @_, "\n"); };
    my $recv      = sub { chomp(my $ret = <$client_control_socket>); return $ret; };
 
-   #print("\n[Client]: Servers and clients set up. Press ENTER to continue...\n");
-   #<STDIN>;
-
-   # New attempt...
    my $ret;
+   $send->("tjena");
    $send->($pc->_sub('hello', 'q'));
    $ret = $recv->();
-   if ($ret =~ $pc->Q_OK) {
+   if ($ret =~ $pc->A_OK) {
       $send->($pc->_sub('get', 'q', $data_size, $buf_size));
+      $ret = $recv->();
+      printf("[Client]: Server told me: %s\n", $ret);
+      if ($ret =~ $pc->A_GET) {
+         my $datasize = $1;
+         my $bufsize  = $2;
+         my $ip       = $3;
+         my $port     = $4;
+         my $cc       = new_ok(
+            'BWMonitor::Consumer' => [
+               IO::Socket::INET->new(
+                  PeerAddr => $ip,
+                  PeerPort => $port,
+                  Proto    => $prot_d,
+                  Timeout  => $pc->TIMEOUT,
+                  Type     => SOCK_DGRAM,
+               ),
+               $logger, $pc
+            ]
+         );
+         #print("Sending kick...\n");
+         #$cc->send($pc->MAGIC);    # must
+         #print("Trying to read a bunch of stuff\n");
+         my ($read, $elapsed) = $cc->read_rand($datasize, $bufsize);
+         is($data_size, $read, "Got the requested data size ($read bytes) back");
+         my $bit_pr_sec  = ($read * 8) / $elapsed;
+         my $mbit_pr_sec = $bit_pr_sec / 1000 / 1000;
+         printf("[Client]: Read %d bytes in %f seconds (%.2f Mbps)\n", $read, $elapsed, $mbit_pr_sec);
+         $send->($pc->_sub('get', 'r', $read, $elapsed));
+      }
    }
 
-   #my $ret;
-   print($client_control_socket $pc->_sub('get', 'q', $data_size, $buf_size), "\n");
-#   chomp($ret = <$client_control_socket>);
-#   if ($ret =~ BWMonitor::ProtocolCommand::A_GET) {
-#      print("Good to go....\n");
-#   }
+   $send->($pc->Q_QUIT);
 
-   $cc->init();    # kick the connection alive
-
-   my ($read, $elapsed) = $cc->read_rand($data_size, $buf_size);
-   print($client_control_socket $pc->_sub('get', 'r', $read, $elapsed), "\n");
-   print($client_control_socket $pc->Q_QUIT, "\n");
-   #my $bit_pr_sec = ($read * 8) / $elapsed;
-   #my $mbit_pr_sec = $bit_pr_sec / 1000 / 1000;
-   #printf("[Client]: Read %d bytes in %f seconds (%.2f Mbps)\n", $read, $elapsed, $mbit_pr_sec);
-
-   is($data_size, $read, "Got the requested data size ($read bytes) back");
-
-   close($client_control_socket);
-   close($client_data_socket);
-   undef($cc);
-   exit;
+#   undef($cc);
+#   undef($pc);
+#   undef($logger);
+#   close($client_control_socket);
+#   close($client_data_socket);
+   exit 0;
 }
 pass("After fork");
 # parent / server
@@ -105,48 +110,62 @@ my $server_control_socket = IO::Socket::INET->new(
    Reuse     => 1,
    Listen    => 1,
 ) or die($!);
-my $server_data_socket = IO::Socket::INET->new(
-   LocalAddr => $host,
-   LocalPort => $port_d,
-   Proto     => $prot_d,
-   Timeout   => $pc->TIMEOUT,
-   Type      => SOCK_DGRAM,
-   Reuse     => 1,
-   Listen    => 1,
-) or die($!);
-
-my $sp = new_ok('BWMonitor::Producer', [ $server_data_socket, $logger, $pc ]);
 
 ACCEPT:
 while (my $c = $server_control_socket->accept) {
-   CLIENT_READ:
-   while (defined(chomp(my $ret = <$c>))) {
+   my $ret;
+   CLIENTREAD:
+   while ($ret = <$c>) {
+      chomp($ret);
+      next unless ($ret);
       printf(qq([Server]: Got "%s" from client\n), $ret);
       if ($ret =~ $pc->Q_HELLO) {
-         if ($pc->MAGIC == $1) {
+         #printf("Matched hello at least, with magic: %d\n", $1);
+         if ($1 == $pc->MAGIC) {
+            #print("Wohooo!\n");
             printf($c "%s\n", $pc->A_OK);
          }
          else {
+            printf("D'oh\n");
             printf($c "%s\n", $pc->A_NOK);
          }
-         next CLIENT_READ;
+         next CLIENTREAD;
       }
       elsif ($ret =~ $pc->Q_GET) {
-         printf($c "%s\n", $pc->_sub('get', 'a'));
-         #$sp->write_rand($1);
+         my $sp = new_ok(
+            'BWMonitor::Producer',
+            [  IO::Socket::INET->new(
+                  LocalAddr => $host,
+                  LocalPort => $port_d,
+                  Proto     => $prot_d,
+                  Timeout   => $pc->TIMEOUT,
+                  Type      => SOCK_DGRAM,
+               ),
+               IO::File->new('/dev/urandom', O_RDONLY),
+               $logger, $pc
+            ]
+         );
+         printf($c "%s\n", $pc->_sub('get', 'a', $c->peerhost, $port_d));
+         #$sp->recv(8);
+         $sp->write_rand($1, $2);   # bytes, buf_size
       }
       elsif ($ret =~ $pc->R_GET) {
-         printf("%d bytes in %f seconds from %s\n", $1, $2, $c->peer);
+         printf("[Server]: %d bytes in %f seconds from %s\n", $1, $2, $c->peerhost);
       }
       elsif ($ret =~ $pc->Q_QUIT) {
+         printf(qq([Server]: Got the kill command, talas...\n));
          close($c);
+         close($server_control_socket);
          last ACCEPT;
       }
    }
 }
+#undef($sp);
+#close($server_data_socket);
+#close($server_control_socket);
+#undef($logger);
+#undef($pc);
 waitpid($kidpid, 0);
-undef($sp);
-close($server_control_socket);
 
 done_testing(15);
 

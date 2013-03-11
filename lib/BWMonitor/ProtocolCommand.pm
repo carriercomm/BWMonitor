@@ -34,14 +34,15 @@ use constant {
    A_GET => qr/
          ^_GET_OK\s+                                # keyword + space(s)
          (\d+)\s+                                   # size in bytes + space(s)
+         (\d+)\s+                                   # buf size in bytes + space(s)
          (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s+    # ip, dotted notation + space(s)
          (\d{4,5})                                  # port, 4-5 digits
       /x,
    # "result"
    R_GET => qr/
          ^_GET_RESULT\s+                            # keyword + space(s)
-         (\d+)\s+\w\s+\w\s+                         # xxx bytes in
-         ([-+]?[0-9]*\.?[0-9]+)                     # xxx.xx seconds
+         (\d+)\s+\w+\s+\w+\s+                         # xxx bytes in
+         (\d*\.?\d+)                     # xxx.xx seconds
       /x,
    Q_HELLO => qr/^_HELLO\s+(\d+)/,
    Q_QUIT  => '_QUIT',

@@ -28,43 +28,76 @@ sub new {
    return bless($self, $class);
 }
 
+sub _set {
+   my $self = shift;
+   my $key  = shift;
+   if (@_) {
+      $self->{$key} = shift;
+   }
+   return $self;
+}
+
+sub urnd {
+   my $k = 'urnd_fh';
+   return shift()->_set($k, @_)->{$k};
+}
+
+sub sock {
+   my $k = 'sock_fh';
+   return shift()->_set($k, @_)->{$k};
+}
+
+sub logger {
+   my $k = 'logger';
+   return shift()->_set($k, @_)->{$k};
+}
+
+sub pcmd {
+   my $k = 'pcmd';
+   return shift()->_set($k, @_)->{$k};
+}
+
 sub send {
-   return shift()->{sock_fh}->send(@_);
+   return shift()->sock->send(@_);
 }
 
 sub recv {
    my $self = shift;
-   my $buf_size = shift || $self->{pcmd}->BUF_SIZE;
+   my $buf_size = shift || $self->pcmd->BUF_SIZE;
    my $buf;
-   $self->{sock_fh}->recv($buf, $buf_size);
+   $self->sock->recv($buf, $buf_size);
    return 0 unless ($buf);
    return wantarray ? (length($buf), $buf) : length($buf);
 }
 
 # ...?
-sub handshake {
-   my $self = shift;
-}
+#sub handshake {
+#   my $self = shift;
+#}
 
 sub write_rand {
    my $self     = shift;
-   my $bytes    = shift || $self->{pcmd}->SAMPLE_SIZE;
-   my $buf_size = shift || $self->{pcmd}->BUF_SIZE;
+   my $bytes    = shift || $self->pcmd->SAMPLE_SIZE;
+   my $buf_size = shift || $self->pcmd->BUF_SIZE;
    my ($read, $written, $buf, $ret) = (0, 0, undef, 0);
 
-   my $t_start = $self->{logger}->t_start;
-   #$self->{sock_fh}->recv($buf, $buf_size); # hack, must do one recv to get peer addr
+   #print("BWMonitor::Producer::write_rand() : well, got here at least...\n");
+
+   $self->recv(8); # hack, must do one recv to get peer addr
+
+   my $t_start = $self->logger->t_start;
    while ($written <= $bytes) {
-      $ret = $self->{urnd_fh}->read($buf, $buf_size);
+      #print("Written: $written \n");
+      $ret = $self->urnd->read($buf, $buf_size);
       if ($ret && $ret > 0) {
          $read = $ret;
-         $ret = $self->{sock_fh}->send($buf, $buf_size);
+         $ret = $self->send($buf, $buf_size);
          if ($ret && $ret > 0) {
             $written += $ret;
          }
       }
    }
-   my $t_elapsed = $self->{logger}->t_stop($t_start);
+   my $t_elapsed = $self->logger->t_stop($t_start);
    return wantarray ? ($written, $t_elapsed) : $written;
 }
 

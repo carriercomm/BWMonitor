@@ -9,7 +9,7 @@ use warnings;
 
 #use IO::Socket::INET;
 
-#use BWMonitor::ProtocolCommand;
+use BWMonitor::ProtocolCommand;
 #use BWMonitor::Logger;
 #use BWMonitor::Producer;
 #use BWMonitor::Consumer;
