@@ -78,25 +78,17 @@ if ($kidpid == 0) {
                $logger, $pc
             ]
          );
-         #print("Sending kick...\n");
-         #$cc->send($pc->MAGIC);    # must
-         #print("Trying to read a bunch of stuff\n");
          my ($read, $elapsed) = $cc->read_rand($datasize, $bufsize);
+         $send->($pc->_sub('get', 'r', $read, $elapsed));
          is($data_size, $read, "Got the requested data size ($read bytes) back");
          my $bit_pr_sec  = ($read * 8) / $elapsed;
          my $mbit_pr_sec = $bit_pr_sec / 1000 / 1000;
          printf("[Client]: Read %d bytes in %f seconds (%.2f Mbps)\n", $read, $elapsed, $mbit_pr_sec);
-         $send->($pc->_sub('get', 'r', $read, $elapsed));
       }
    }
 
    $send->($pc->Q_QUIT);
 
-#   undef($cc);
-#   undef($pc);
-#   undef($logger);
-#   close($client_control_socket);
-#   close($client_data_socket);
    exit 0;
 }
 pass("After fork");
@@ -120,13 +112,10 @@ while (my $c = $server_control_socket->accept) {
       next unless ($ret);
       printf(qq([Server]: Got "%s" from client\n), $ret);
       if ($ret =~ $pc->Q_HELLO) {
-         #printf("Matched hello at least, with magic: %d\n", $1);
          if ($1 == $pc->MAGIC) {
-            #print("Wohooo!\n");
             printf($c "%s\n", $pc->A_OK);
          }
          else {
-            printf("D'oh\n");
             printf($c "%s\n", $pc->A_NOK);
          }
          next CLIENTREAD;
@@ -146,7 +135,6 @@ while (my $c = $server_control_socket->accept) {
             ]
          );
          printf($c "%s\n", $pc->_sub('get', 'a', $c->peerhost, $port_d));
-         #$sp->recv(8);
          $sp->write_rand($1, $2);   # bytes, buf_size
       }
       elsif ($ret =~ $pc->R_GET) {
@@ -160,11 +148,6 @@ while (my $c = $server_control_socket->accept) {
       }
    }
 }
-#undef($sp);
-#close($server_data_socket);
-#close($server_control_socket);
-#undef($logger);
-#undef($pc);
 waitpid($kidpid, 0);
 
 done_testing(15);

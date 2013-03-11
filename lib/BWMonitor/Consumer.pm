@@ -6,11 +6,6 @@ package BWMonitor::Consumer;
 
 use strict;
 use warnings;
-#use IO::Socket::INET;
-#use Time::HiRes;
-
-#use BWMonitor::ProtocolCommand;
-#use BWMonitor::Logger;
 
 sub new {
    my $class = shift;
@@ -34,12 +29,6 @@ sub _set {
 }
 
 sub sock {
-#   my $self = shift;
-#   if (@_) {
-#      $self->{sock_fh} = shift;
-#   }
-#   return $self->{sock_fh};
-
    my $k = 'sock_fh';
    return shift()->_set($k, @_)->{$k};
 }
@@ -67,27 +56,17 @@ sub recv {
    return wantarray ? (length($buf), $buf) : length($buf);
 }
 
-# ...?
-#sub handshake {
-#   my $self = shift;
-#   $self->send($self->pcmd->HANDSHAKE);
-#   my ($l, $b) = $self->recv(8);    # random small buffer size
-#   return ($b == ($self->pcmd->HANDSHAKE + $self->pcmd->MAGIC));
-#}
-
 sub read_rand {
    my $self     = shift;
    my $bytes    = shift || $self->pcmd->SAMPLE_SIZE;
    my $buf_size = shift || $self->pcmd->BUF_SIZE;
    my ($read, $ret) = (0, 0);
 
-   #print("BWMonitor::Consumer::read_rand() : well, got here at least...\n");
    # kick the socket alive
    $self->send($self->pcmd->MAGIC);
 
    my $t_start = $self->logger->t_start;
    while ($read < $bytes) {
-      #print("Read: $read \n");
       $ret = $self->recv($buf_size);
       last if ($ret == 0);
       $read += $ret;
@@ -96,10 +75,6 @@ sub read_rand {
    return wantarray ? ($read, $t_elapsed) : $read;
 }
 
-#sub DESTROY {
-#   my $self = shift;
-#   undef($self->{sock_fh});
-#}
 
 1;
 __END__
