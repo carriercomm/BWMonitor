@@ -9,6 +9,10 @@ from India to Sweden, but probably usable for more as well.
 Implemented as module with scripts using them, performing different
 tasks depending on having the role of a client or server.
 
+## Licence:
+
+BWMonitor is released under GPL.
+
 ## Technical
 
 The server listens on a TCP socket, running continously, acting as
@@ -28,11 +32,16 @@ the results of it's test back to the server via the TCP control channel
 for logging purposes, and then either disconnect, or request some other
 operation (just to not exclude possible future additional features).
 
-# Summary
+### Platform
+
+[Perl](http://www.perl.org)
+
+## Summary
 
 Basically, just a simplified rip-off of the FTP protocol, trimmed down
 for a specific need, but hopefully extensible for other purposes.
 
+## Author
 
 Odd Eivind Ebbesen <oddebb@gmail.com>, 2013-03-13 18:31:06
 
