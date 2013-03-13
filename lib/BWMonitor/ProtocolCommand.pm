@@ -41,8 +41,8 @@ use constant {
    # "result"
    R_GET => qr/
          ^_GET_RESULT\s+                            # keyword + space(s)
-         (\d+)\s+\w+\s+\w+\s+                         # xxx bytes in
-         (\d*\.?\d+)                     # xxx.xx seconds
+         (\d+)\s+\w+\s+\w+\s+                       # xxx bytes in
+         (\d*\.?\d+)                                # xxx.xx seconds
       /x,
    Q_HELLO => qr/^_HELLO\s+(\d+)/,
    Q_QUIT  => '_QUIT',

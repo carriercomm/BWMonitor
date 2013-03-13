@@ -79,11 +79,9 @@ if ($kidpid == 0) {
             ]
          );
          my ($read, $elapsed) = $cc->read_rand($datasize, $bufsize);
-         $send->($pc->_sub('get', 'r', $read, $elapsed));
+         $send->($pc->_sub('get', 'r', $read, $elapsed)); # log result back to server
          is($data_size, $read, "Got the requested data size ($read bytes) back");
-         my $bit_pr_sec  = ($read * 8) / $elapsed;
-         my $mbit_pr_sec = $bit_pr_sec / 1000 / 1000;
-         printf("[Client]: Read %d bytes in %f seconds (%.2f Mbps)\n", $read, $elapsed, $mbit_pr_sec);
+         #printf("[Client]: Read %d bytes in %f seconds (%.2f Mbps)\n", $read, $elapsed, (($read * 8) / $elapsed) / 1000 / 1000);
       }
    }
 
@@ -138,7 +136,9 @@ while (my $c = $server_control_socket->accept) {
          $sp->write_rand($1, $2);   # bytes, buf_size
       }
       elsif ($ret =~ $pc->R_GET) {
-         printf("[Server]: %d bytes in %f seconds from %s\n", $1, $2, $c->peerhost);
+         my $bytes   = $1;
+         my $seconds = $2;
+         printf("[Server]: %d bytes in %f seconds from %s:%d\n", $bytes, $seconds, $c->peerhost, $c->peerport);
       }
       elsif ($ret =~ $pc->Q_QUIT) {
          printf(qq([Server]: Got the kill command, talas...\n));
