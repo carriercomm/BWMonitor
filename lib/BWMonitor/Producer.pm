@@ -86,6 +86,18 @@ sub write_rand {
    return wantarray ? ($written, $t_elapsed) : $written;
 }
 
+sub cleanup {
+   my $self = shift;
+   close($self->{urnd_fh});
+   close($self->{sock_fh});
+}
+
+#sub DESTROY {
+#   my $self = shift;
+#   close($self->{urnd_fh});
+#   close($self->{sock_fh});
+#}
+
 
 1;
 __END__
