@@ -9,16 +9,18 @@ use warnings;
 
 sub new {
    my $class = shift;
-   my $self  = {
-      sock_fh => shift,    # IO::Socket::INET
-      urnd_fh => shift,    # IO::File->new('/dev/urandom', O_RDONLY)
-      logger  => shift,    # BWMonitor::Logger
-      pcmd    => shift,    # BWMonitor::ProtocolCommand
-   };
-   return unless (defined($self->{sock_fh}) && defined($self->{urnd_fh}));
-   binmode($self->{urnd_fh});    # binary data
-   binmode($self->{sock_fh});    # binary data
-   return bless($self, $class);
+   my %args = @_;
+   my %cfg = (
+      sock_fh => undef,    # IO::Socket::INET
+      urnd_fh => undef,    # IO::File->new('/dev/urandom', O_RDONLY)
+      logger  => undef,    # BWMonitor::Logger
+      pcmd    => undef,    # BWMonitor::ProtocolCommand
+   );
+   @cfg{ keys(%args) } = values(%args);
+   return unless (defined($cfg{sock_fh}) && defined($cfg{urnd_fh}));
+   binmode($cfg{urnd_fh});    # binary data
+   binmode($cfg{sock_fh});    # binary data
+   return bless(\%cfg, $class);
 }
 
 sub _set {

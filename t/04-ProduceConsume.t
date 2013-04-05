@@ -132,7 +132,7 @@ while (my $c = $server_control_socket->accept) {
                $logger, $pc
             ]
          );
-         printf($c "%s\n", $pc->_sub('get', 'a', $c->peerhost, $port_d));
+         printf($c "%s\n", $pc->_sub('get', 'a', $port_d));
          $sp->write_rand($1, $2);   # bytes, buf_size
       }
       elsif ($ret =~ $pc->R_GET) {

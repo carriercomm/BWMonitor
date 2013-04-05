@@ -11,7 +11,7 @@ package BWMonitor::ProtocolCommand;
 use strict;
 use warnings;
 
-our $VERSION = '0.0.3';
+our $VERSION = '0.0.4';
 
 use constant {
    TIMEOUT     => 5,
@@ -21,7 +21,11 @@ use constant {
    SAMPLE_SIZE => 1_048_576,    # 1MB
    MAGIC       => 0x0DDEE,
    HANDSHAKE   => 0x0666,
+   NL          => "\012\015",
 };
+
+# Just saving for (possibly later)
+#(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s+    # ip, dotted notation + space(s)
 
 use constant {
    # "question"
@@ -35,7 +39,6 @@ use constant {
          ^_GET_OK\s+                                # keyword + space(s)
          (\d+)\s+                                   # size in bytes + space(s)
          (\d+)\s+                                   # buf size in bytes + space(s)
-         (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s+    # ip, dotted notation + space(s)
          (\d{4,5})                                  # port, 4-5 digits
       /x,
    # "result"
@@ -44,10 +47,12 @@ use constant {
          (\d+)\s+\w+\s+\w+\s+                       # xxx bytes in
          (\d*\.?\d+)                                # xxx.xx seconds
       /x,
-   Q_HELLO => qr/^_HELLO\s+(\d+)/,
-   Q_QUIT  => '_QUIT',
-   A_OK    => '_OK',
-   A_NOK   => '_NOT_OK',
+   Q_HELLO     => qr/^_HELLO\s+(\d+)/,
+   Q_QUIT      => '_QUIT',
+   Q_CLOSE     => '_CLOSE',
+   A_OK        => '_OK',
+   A_NOK       => '_NOT_OK',
+   TIMEOUT_MSG => 'Connection idle timeout, bye.',
 };
 
 # helper subs to make generating correctly formatted questions/answers easier
@@ -59,11 +64,10 @@ our $_SUB = {
          return sprintf("_GET %d %d", $size, $buf_size);
       },
       a => sub {
-         my $ip       = shift;
          my $port     = shift;
          my $bytes    = shift || SAMPLE_SIZE;
          my $buf_size = shift || BUF_SIZE;
-         return sprintf("_GET_OK %d %d %s %d", $bytes, $buf_size, $ip, $port);
+         return sprintf("_GET_OK %d %d %d", $bytes, $buf_size, $port);
       },
       r => sub {
          my ($bytes, $seconds) = @_;
