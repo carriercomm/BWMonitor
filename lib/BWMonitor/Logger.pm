@@ -7,6 +7,7 @@ package BWMonitor::Logger;
 use strict;
 use warnings;
 
+#use Carp;
 use Time::HiRes;
 
 my $_singleton;
@@ -26,14 +27,20 @@ sub t_stop {
    return Time::HiRes::tv_interval($start);
 }
 
+sub to_mbit {
+   my $self    = shift;
+   my $bytes   = shift;
+   my $seconds = shift;
+   return (($bytes * 8) / $seconds) / 1000 / 1000;
+}
+
 sub log_transfer {
    my $self    = shift;
    my $bytes   = shift;
    my $seconds = shift;
    my $peer    = shift;
 
-   my $bps = ($bytes * 8) / $seconds;
-   my $mbps = $bps / 1000 / 1000;
+   my $mbps = $self->to_mbit($bytes, $seconds);
 
    # gotta do something else here later
    printf("%s->%s: %d Mbps to %s\n", __PACKAGE__, 'log_transfer()', $mbps, $peer);

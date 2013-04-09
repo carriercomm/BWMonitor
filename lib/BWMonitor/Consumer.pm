@@ -9,14 +9,16 @@ use warnings;
 
 sub new {
    my $class = shift;
-   my $self  = {
-      sock_fh => shift,    # IO::Socket::INET
-      logger  => shift,    # BWMonitor::Logger
-      pcmd    => shift,    # BWMonitor::ProtcolCommand
-   };
-   return unless (defined($self->{sock_fh}));
-   binmode($self->{sock_fh});    # will be reading binary
-   return bless($self, $class);
+   my %args  = @_;
+   my %cfg   = (
+      sock_fh => undef,    # IO::Socket::INET
+      logger  => undef,    # BWMonitor::Logger
+      pcmd    => undef,    # BWMonitor::ProtcolCommand
+   );
+   @cfg{ keys(%args) } = values(%args);
+   return unless (defined($cfg{sock_fh}));
+   binmode($cfg{sock_fh});    # will be reading binary
+   return bless(\%cfg, $class);
 }
 
 sub _set {
@@ -63,14 +65,16 @@ sub read_rand {
    my ($read, $ret) = (0, 0);
 
    # kick the socket alive
-   $self->send($self->pcmd->MAGIC);
+   $self->send(1);
 
    my $t_start = $self->logger->t_start;
    while ($read < $bytes) {
       $ret = $self->recv($buf_size);
       last if ($ret == 0);
       $read += $ret;
+      #print("Read: $read\n");
    }
+   #print("Done reading\n");
    my $t_elapsed = $self->logger->t_stop($t_start);
    return wantarray ? ($read, $t_elapsed) : $read;
 }

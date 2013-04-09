@@ -17,7 +17,7 @@ use constant {
    TIMEOUT     => 5,
    SERVER_PORT => 10443,
    DATA_PORT   => 10444,
-   BUF_SIZE    => 4096,
+   BUF_SIZE    => 16384,
    SAMPLE_SIZE => 1_048_576,    # 1MB
    MAGIC       => 0x0DDEE,
    HANDSHAKE   => 0x0666,
@@ -36,7 +36,7 @@ use constant {
       /x,
    # "answer"
    A_GET => qr/
-         ^_GET_OK\s+                                # keyword + space(s)
+         _GET_OK\s+                                # keyword + space(s)
          (\d+)\s+                                   # size in bytes + space(s)
          (\d+)\s+                                   # buf size in bytes + space(s)
          (\d{4,5})                                  # port, 4-5 digits

@@ -9,6 +9,7 @@ use base qw(Net::Server::Fork);
 use strict;
 use warnings;
 
+use Carp;
 use IO::File;
 use IO::Socket::INET;
 use BWMonitor::ProtocolCommand;
@@ -47,13 +48,13 @@ sub process_request {
 
    my $prev_alarm = alarm($timeout);
    eval {
-      local $SIG{ALRM} = sub { die($$pcmd->TIMEOUT_MSG); };
+      local $SIG{ALRM} = sub { croak($$pcmd->TIMEOUT_MSG); };
 
       while (<STDIN>) {
          s/^(.*?)\r?\n$//;
          next unless ($1);
          my $input = $1;
-         printf("You said: $input%s", $$pcmd->NL);
+         #printf("You said: $input%s", $$pcmd->NL);
        SWITCH: {
             if ($input =~ $$pcmd->Q_QUIT) {
                $self->server_close;
@@ -66,9 +67,10 @@ sub process_request {
             if ($input =~ $$pcmd->Q_GET) {
                my $data_size = $1;
                my $buf_size  = $2;
-               my $p         = BWMonitor::Producer->new(
+               $self->log(4, "[Server]: sample size: %d, buf size: %d", $data_size, $buf_size);
+               my $p = BWMonitor::Producer->new(
                   sock_fh => IO::Socket::INET->new(
-                     LocalPort => $self->{bwm}{udp_port} // $$pcmd->DATA_PORT,
+                     LocalPort => $self->{bwm}{udp_port},
                      Proto     => 'udp',
                      Timeout   => $$pcmd->TIMEOUT,
                      Type      => SOCK_DGRAM,
@@ -77,8 +79,11 @@ sub process_request {
                   logger  => $self->{bwm}{logger},
                   pcmd    => $$pcmd
                );
-               printf("%s%s", $$pcmd->_sub('get', 'a', $self->{bwm}{udp_port}));
-               $p->write_rand($data_size, $buf_size);
+               my $ret =
+                 sprintf("%s%s", $$pcmd->_sub('get', 'a', $self->{bwm}{udp_port}, $data_size, $buf_size), $$pcmd->NL);
+               $self->log(4, "[Server]: $ret");
+               print($ret);
+               $p->write_rand($data_size, $buf_size, sub { $self->log(4, @_); });
                last SWITCH;
             }
             if ($input =~ $$pcmd->R_GET) {
@@ -89,10 +94,9 @@ sub process_request {
                   1,
                   sprintf(
                      "%s %d bytes in %.2f seconds (%.2f Mbit) to peer %s:%d",
-                     log_time,
-                     $bytes, $seconds, (($bytes * 8) / $seconds) / 1000 / 1000,
-                     $self->get_property('peeraddr'),
-                     $self->get_property('peerport')
+                     log_time, $bytes,
+                     $seconds, (($bytes * 8) / $seconds) / 1000 / 1000,
+                     $self->get_property('peeraddr'), $self->get_property('peerport')
                   )
                );
             }

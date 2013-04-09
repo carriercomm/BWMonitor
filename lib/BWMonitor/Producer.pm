@@ -18,6 +18,7 @@ sub new {
    );
    @cfg{ keys(%args) } = values(%args);
    return unless (defined($cfg{sock_fh}) && defined($cfg{urnd_fh}));
+   $cfg{sock_fh}->autoflush(1);
    binmode($cfg{urnd_fh});    # binary data
    binmode($cfg{sock_fh});    # binary data
    return bless(\%cfg, $class);
@@ -69,21 +70,35 @@ sub write_rand {
    my $self     = shift;
    my $bytes    = shift || $self->pcmd->SAMPLE_SIZE;
    my $buf_size = shift || $self->pcmd->BUF_SIZE;
+#   my $cb       = shift;                               # callback code ref
+   
    my ($read, $written, $buf, $ret) = (0, 0, undef, 0);
 
-   $self->recv(8); # hack, must do one recv to get peer addr
+#   my $_cb = sub {
+#      if (ref($cb) eq 'CODE') {
+#         $cb->(@_);
+#      }
+#      else {
+#         print(STDERR "BWMonitor::Producer::write_rand(): Callback not defined. Arg: @_\n");
+#      }
+#   };
+
+   $self->recv(1);                                     # hack, must do one recv to get peer addr
 
    my $t_start = $self->logger->t_start;
-   while ($written <= $bytes) {
+   while ($written < $bytes) {
       $ret = $self->urnd->read($buf, $buf_size);
       if ($ret && $ret > 0) {
          $read = $ret;
          $ret = $self->send($buf, $buf_size);
-         if ($ret && $ret > 0) {
+         #$_cb->($ret);
+         if ($ret && $ret >= 0) {
             $written += $ret;
          }
+         #$_cb->($written);
       }
    }
+#   $_cb->("Done writing");
    my $t_elapsed = $self->logger->t_stop($t_start);
    return wantarray ? ($written, $t_elapsed) : $written;
 }
@@ -94,11 +109,11 @@ sub cleanup {
    close($self->{sock_fh});
 }
 
-#sub DESTROY {
-#   my $self = shift;
-#   close($self->{urnd_fh});
-#   close($self->{sock_fh});
-#}
+sub DESTROY {
+   my $self = shift;
+   close($self->{urnd_fh});
+   close($self->{sock_fh});
+}
 
 
 1;
