@@ -11,7 +11,7 @@ package BWMonitor::ProtocolCommand;
 use strict;
 use warnings;
 
-our $VERSION = '0.0.4';
+our $VERSION = '0.0.5';
 
 use constant {
    TIMEOUT     => 5,
@@ -47,6 +47,8 @@ use constant {
          (\d+)\s+\w+\s+\w+\s+                       # xxx bytes in
          (\d*\.?\d+)                                # xxx.xx seconds
       /x,
+   R_CSV       => qr/_RESULT_CSV\s+(.*)$/,
+   Q_CSV       => '_RESULT_CSV',
    Q_HELLO     => qr/^_HELLO\s+(\d+)/,
    Q_QUIT      => '_QUIT',
    Q_CLOSE     => '_CLOSE',

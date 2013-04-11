@@ -12,21 +12,18 @@ use IO::Socket::INET;
 use Data::Dumper;
 use BWMonitor::ProtocolCommand;
 use BWMonitor::Logger;
-use BWMonitor::Producer;
-use BWMonitor::Consumer;
 
 sub new {
    my $class = shift;
    my %args  = @_;
    my $pcmd  = BWMonitor::ProtocolCommand->new();    # singleton
-   my %cfg   = (
-      logger      => BWMonitor::Logger->new(),       # returns singleton
-      pcmd        => $pcmd,
-      remote_host => undef,
-      remote_port => $pcmd->SERVER_PORT,
-      sample_size => $pcmd->SAMPLE_SIZE,
-      buf_size    => $pcmd->BUF_SIZE,
-      sock        => undef,
+   my %cfg = (
+      logger        => BWMonitor::Logger->new(),    # returns singleton
+      pcmd          => $pcmd,
+      remote_host   => undef,
+      remote_port_c => $pcmd->SERVER_PORT,
+      remote_port_d => $pcmd->DATA_PORT,
+      sock          => undef,
    );
    @cfg{ keys(%args) } = values(%args);
 
@@ -44,7 +41,7 @@ sub connect {
    my $self = shift;
    return $self->{sock} //= IO::Socket::INET->new(
       PeerHost => $self->{remote_host},
-      PeerPort => $self->{remote_port},
+      PeerPort => $self->{remote_port_c},
       Proto    => 'tcp',
       Timeout  => $self->{pcmd}->TIMEOUT,
    ) or croak($!);
@@ -96,36 +93,12 @@ sub recv {
 
 sub download {
    my $self = shift;
-   print("Sending request for Dl to server...\n");
-   my $status = $self->send($self->{pcmd}->_sub('get', 'q', $self->{data_size}, $self->{buf_size}))->recv;
-   #my $status = $self->recv;
-   #print("status: ", Dumper($status), $self->{pcmd}->NL);
-   if ($status =~ $self->{pcmd}->A_GET) {
-      print("Ready to download...\n");
-      my $sample_size = $1;
-      my $buf_size    = $2;
-      my $udp_port    = $3;
-      my $consumer    = BWMonitor::Consumer->new(
-         sock_fh => IO::Socket::INET->new(
-            PeerAddr => $self->{remote_host},
-            PeerPort => $udp_port,
-            Proto    => 'udp',
-            Type     => SOCK_DGRAM,
-            Timeout  => $self->{pcmd}->TIMEOUT
-         ),
-         pcmd   => $self->{pcmd},
-         logger => $self->{logger}
-      );
-      my ($read, $elapsed) = $consumer->read_rand($sample_size, $buf_size);
-      $self->send($self->{pcmd}->_sub('get', 'r', $read, $elapsed));    # log result back to server
-      return $self->{logger}->to_mbit($read, $elapsed);
-   }
-   else {
-       print("No match:\n\t");
-       print($status, "\n");
-   }
-   # FAIL
-   return undef;
+   $self->send($self->{pcmd}->_sub('get', 'q'));
+   printf("%s\n", $self->recv);
+   my $result_csv = qx(iperf -y C -c $self->{remote_host} -p $self->{remote_port_d});
+   chomp($result_csv);
+   $self->send("%s %s", $self->{pcmd}->Q_CSV, $result_csv);
+   return $self;
 }
 
 sub upload {

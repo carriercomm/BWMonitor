@@ -13,16 +13,14 @@ use BWMonitor::Client;
 
 my $pcmd = BWMonitor::ProtocolCommand->new();
 my $opts = {
-   port        => $pcmd->SERVER_PORT,
-   sample_size => $pcmd->SAMPLE_SIZE,
-   buf_size    => $pcmd->BUF_SIZE,
+   port      => $pcmd->SERVER_PORT,
+   data_port => $pcmd->DATA_PORT,
 };
 
 GetOptions(
-   'host=s'        => \$opts->{host},
-   'port=i'        => \$opts->{port},
-   'sample-size=i' => \$opts->{sample_size},
-   'buf-size=i'    => \$opts->{buf_size},
+   'host=s'      => \$opts->{host},
+   'port=i'      => \$opts->{port},
+   'data_port=i' => \$opts->{data_port},
 ) or croak($!);
 
 if (!$opts->{host}) {
@@ -30,17 +28,16 @@ if (!$opts->{host}) {
 }
 
 my $client = BWMonitor::Client->new(
-   remote_host => $opts->{host},
-   remote_port => $opts->{port},
-   sample_size => $opts->{sample_size},
-   buf_size    => $opts->{buf_size}
+   remote_host   => $opts->{host},
+   remote_port_c => $opts->{port},
+   remote_port_d => $opts->{data_port},
 );
 
 my $buf;
-$client->connect or croak($!);
+$client->connect or croak;
 #$client->send("This is a little test");
 $buf = $client->recv;
 print("Server said: $buf\n");
-my $speed = $client->download;
-print("Downloaded at $speed Mbit/s\n") if ($speed);
+my $result = $client->download;
+print("Got: $result\n") if ($result);
 $client->disconnect;

@@ -11,73 +11,16 @@ sub new {
    my $class = shift;
    my %args  = @_;
    my %cfg   = (
-      sock_fh => undef,    # IO::Socket::INET
+#      sock_fh => undef,    # IO::Socket::INET
       logger  => undef,    # BWMonitor::Logger
       pcmd    => undef,    # BWMonitor::ProtcolCommand
    );
    @cfg{ keys(%args) } = values(%args);
-   return unless (defined($cfg{sock_fh}));
-   binmode($cfg{sock_fh});    # will be reading binary
+#   return unless (defined($cfg{sock_fh}));
+#   binmode($cfg{sock_fh});    # will be reading binary
    return bless(\%cfg, $class);
 }
 
-sub _set {
-   my $self = shift;
-   my $key  = shift;
-   if (@_) {
-      $self->{$key} = shift;
-   }
-   return $self;
-}
-
-sub sock {
-   my $k = 'sock_fh';
-   return shift()->_set($k, @_)->{$k};
-}
-
-sub logger {
-   my $k = 'logger';
-   return shift()->_set($k, @_)->{$k};
-}
-
-sub pcmd {
-   my $k = 'pcmd';
-   return shift()->_set($k, @_)->{$k};
-}
-
-sub send {
-   return shift()->sock->send(@_);
-}
-
-sub recv {
-   my $self = shift;
-   my $buf_size = shift || $self->pcmd->BUF_SIZE;
-   my $buf;
-   $self->{sock_fh}->recv($buf, $buf_size);
-   return 0 unless ($buf);
-   return wantarray ? (length($buf), $buf) : length($buf);
-}
-
-sub read_rand {
-   my $self     = shift;
-   my $bytes    = shift || $self->pcmd->SAMPLE_SIZE;
-   my $buf_size = shift || $self->pcmd->BUF_SIZE;
-   my ($read, $ret) = (0, 0);
-
-   # kick the socket alive
-   $self->send(1);
-
-   my $t_start = $self->logger->t_start;
-   while ($read < $bytes) {
-      $ret = $self->recv($buf_size);
-      last if ($ret == 0);
-      $read += $ret;
-      #print("Read: $read\n");
-   }
-   #print("Done reading\n");
-   my $t_elapsed = $self->logger->t_stop($t_start);
-   return wantarray ? ($read, $t_elapsed) : $read;
-}
 
 
 1;

@@ -13,9 +13,7 @@ use Carp;
 use IO::File;
 use IO::Socket::INET;
 use BWMonitor::ProtocolCommand;
-use BWMonitor::Logger;
-use BWMonitor::Producer;
-use BWMonitor::Consumer;
+use BWMonitor::Iperf;
 
 use Data::Dumper;
 
@@ -23,9 +21,10 @@ sub new {
    my $class = shift;
    my %args  = @_;
    my %cfg = (
-      pcmd     => undef,    # BWMonitor::ProtocolCommand
-      logger   => undef,    # BWMonitor::Logger
-      udp_port => undef,
+      pcmd      => undef,    # BWMonitor::ProtocolCommand
+      logger    => undef,    # BWMonitor::Logger
+      data_port => undef,
+      children  => [],
    );
    # merge args with cfg
    @cfg{ keys(%args) } = values(%args);
@@ -54,7 +53,7 @@ sub process_request {
          s/^(.*?)\r?\n$//;
          next unless ($1);
          my $input = $1;
-         #printf("You said: $input%s", $$pcmd->NL);
+         printf("[Server]: You said: $input%s", $$pcmd->NL);
        SWITCH: {
             if ($input =~ $$pcmd->Q_QUIT) {
                $self->server_close;
@@ -65,40 +64,20 @@ sub process_request {
                last SWITCH;
             }
             if ($input =~ $$pcmd->Q_GET) {
-               my $data_size = $1;
-               my $buf_size  = $2;
-               $self->log(4, "[Server]: sample size: %d, buf size: %d", $data_size, $buf_size);
-               my $p = BWMonitor::Producer->new(
-                  sock_fh => IO::Socket::INET->new(
-                     LocalPort => $self->{bwm}{udp_port},
-                     Proto     => 'udp',
-                     Timeout   => $$pcmd->TIMEOUT,
-                     Type      => SOCK_DGRAM,
-                  ),
-                  urnd_fh => IO::File->new('/dev/urandom', O_RDONLY),
-                  logger  => $self->{bwm}{logger},
-                  pcmd    => $$pcmd
-               );
-               my $ret =
-                 sprintf("%s%s", $$pcmd->_sub('get', 'a', $self->{bwm}{udp_port}, $data_size, $buf_size), $$pcmd->NL);
-               $self->log(4, "[Server]: $ret");
-               print($ret);
-               $p->write_rand($data_size, $buf_size, sub { $self->log(4, @_); });
+               $self->log(4, "Creating Iperf at TCP port $self->{bwm}{data_port}...");
+               my $child = BWMonitor::Iperf->new(port => $self->{bwm}{data_port});
+               push(@{ $self->{bwm}{children} }, $child);
+               my $pid = $child->start;
+               $self->log(4, "Started iperf backend with pid: $pid");
                last SWITCH;
             }
-            if ($input =~ $$pcmd->R_GET) {
-               my $bytes   = $1;
-               my $seconds = $2;
-
-               $self->log(
-                  1,
-                  sprintf(
-                     "%s %d bytes in %.2f seconds (%.2f Mbit) to peer %s:%d",
-                     log_time, $bytes,
-                     $seconds, (($bytes * 8) / $seconds) / 1000 / 1000,
-                     $self->get_property('peeraddr'), $self->get_property('peerport')
-                  )
-               );
+            if ($input =~ $$pcmd->R_CSV) {
+               my $csv = $1;
+               $self->log(4, "Result (CSV): %s", $csv);
+               my $child  = shift(@{ $self->{bwm}{children} });
+               my $killed = $child->stop;
+               $self->log(4, "Killed off $killed iperf child processes");
+               last SWITCH;
             }
             # for debugging only, to be removed
             if ($input =~ /^_dump/) {
@@ -117,9 +96,7 @@ sub process_request {
    }
 }
 
-
 #---
-
 
 1;
 __END__
