@@ -9,11 +9,9 @@ use warnings;
 use POSIX ();
 use IO::File;
 use Getopt::Long qw(:config gnu_getopt auto_help auto_version);
-use BWMonitor::Logger;
 use BWMonitor::ProtocolCommand;
 use BWMonitor::Server;
 
-my $logger = BWMonitor::Logger->new();
 my $pcmd   = BWMonitor::ProtocolCommand->new();
 
 my $opts = {
@@ -29,6 +27,6 @@ GetOptions(
    'help|?'        => \$opts->{help},
 );
 
-my $server = BWMonitor::Server->new(pcmd => $pcmd, logger => $logger, data_port => $opts->{data_port});
+my $server = BWMonitor::Server->new(pcmd => $pcmd, data_port => $opts->{data_port});
 $server->run(conf_file => $opts->{config_file}, port => $opts->{ctrl_port});
 

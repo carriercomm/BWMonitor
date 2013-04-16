@@ -12,14 +12,12 @@ use Carp;
 use IO::Socket::INET;
 use Data::Dumper;
 use BWMonitor::ProtocolCommand;
-use BWMonitor::Logger;
 
 sub new {
    my $class = shift;
    my %args  = @_;
    my $pcmd  = BWMonitor::ProtocolCommand->new();    # singleton
-   my %cfg = (
-      logger        => BWMonitor::Logger->new(),    # returns singleton
+   my %cfg   = (
       pcmd          => $pcmd,
       remote_host   => undef,
       remote_port_c => $pcmd->SERVER_PORT,
@@ -75,7 +73,7 @@ sub send {
          print($s @_, $self->{pcmd}->NL);
       }
       else {
-         carp("No data provided to " . __PACKAGE__ . "->send()");
+         carp("No data provided to " . ref($self) . "->send()");
       }
    }
    return $self;
@@ -94,39 +92,11 @@ sub recv {
 
 sub download {
    my $self = shift;
-   my $fh;
-   
-   $self->send($self->{pcmd}->_sub('get', 'q'));
-   printf("%s\n", $self->recv);
-
-   my $child_pid = open($fh, '-|', 'iperf', '-y', 'C', '-c', $self->{remote_host}, '-p', $self->{remote_port_d})
-     // croak("Can't fork: $!");
-
-   if ($child_pid) {
-      my $res;
-#      while (defined($res = <$fh>)) {
-#         chomp($res);
-#         last;
-#      }
-      chomp($res = <$fh>);
-      close($fh) or carp($!);
-      waitpid($child_pid, 0);
-      $self->send("%s %s", $self->{pcmd}->Q_CSV, $res);
-      return $res;
-   }
-   else {
-      exit;
-   }
+   my $result_csv = qx(iperf -y C -c $self->{remote_host} -p $self->{remote_port_d});
+   chomp($result_csv);
+   $self->send("%s %s", $self->{pcmd}->Q_CSV, $result_csv);
+   return $result_csv;
 }
-#sub download {
-#   my $self = shift;
-#   $self->send($self->{pcmd}->_sub('get', 'q'));
-#   printf("%s\n", $self->recv);
-#   my $result_csv = qx(iperf -y C -c $self->{remote_host} -p $self->{remote_port_d});
-#   chomp($result_csv);
-#   $self->send("%s %s", $self->{pcmd}->Q_CSV, $result_csv);
-#   return $self;
-#}
 
 sub upload {
    my $self = shift;

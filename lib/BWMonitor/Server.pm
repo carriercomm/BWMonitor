@@ -8,28 +8,60 @@ use base qw(Net::Server::Fork);
 
 use strict;
 use warnings;
+use feature ':5.10';
 
 use Carp;
+use POSIX ();
 use IO::File;
 use IO::Socket::INET;
 use BWMonitor::ProtocolCommand;
-use BWMonitor::Iperf;
-
 use Data::Dumper;
 
 sub new {
    my $class = shift;
    my %args  = @_;
-   my %cfg = (
-      pcmd      => undef,    # BWMonitor::ProtocolCommand
-      logger    => undef,    # BWMonitor::Logger
-      data_port => undef,
-      children  => [],
+   my %cfg   = (
+      pcmd            => undef,    # BWMonitor::ProtocolCommand
+      data_port       => undef,
+      iperf_slave_pid => undef,
    );
    # merge args with cfg
    @cfg{ keys(%args) } = values(%args);
-
    return bless({ bwm => \%cfg }, $class);
+}
+
+# Note to self:
+# Rewrite this to open a pipe instead, and read its STDERR to capture 
+# the PID of iperf, as it will print out something like this at startup:
+# $ iperf -s -D -p xxxx
+#   Running Iperf Server as a daemon
+#   The Iperf daemon process ID : 12850
+# $
+sub iperf_spawn {
+   my $self = shift;
+   return if ($self->{bwm}{iperf_slave_pid});
+   my $pid = fork;
+   croak("Unable to fork off iperf daemon at port $self->{bwm}{data_port} - $!") unless (defined($pid));
+   if ($pid == 0) {
+      setpgrp;  # please work!
+      exec("iperf -s -D -p $self->{bwm}{data_port}") || croak("Exec failed $!");
+   }
+   $self->{bwm}{iperf_slave_pid} = $pid;
+   print("I ($$) think I started an iperf instance with pid $pid but it's probably some other pid...\n");
+   return $self->{bwm}{iperf_slave_pid};
+}
+
+sub iperf_reap {
+   my $self = shift;
+   return unless ($self->{bwm}{iperf_slave_pid});
+   unless (kill(0 => $self->{bwm}{iperf_slave_pid}) || $!{EPERM}) {
+      carp("Unable to terminate pid [ $self->{bwm}{iperf_slave_pid} ]");
+      return;
+   }
+   if (kill(KILL => $self->{bwm}{iperf_slave_pid})) {
+      undef($self->{bwm}{iperf_slave_pid});
+      wait;
+   }
 }
 
 #--- Overridden methods ---
@@ -43,11 +75,13 @@ sub process_request {
    my $timeout = 30;
    my $pcmd    = \$self->{bwm}{pcmd};    # shortcut, as this obj is often referred
 
-   printf(qq(Welcome to %s (%s)%s), ref($self), $$, $$pcmd->NL);
+   my $iperf_pid = $self->iperf_spawn or croak("Unable to start iperf instance :(");
+   printf("Welcome to %s (%s)%s", ref($self), $$, $$pcmd->NL);
+   printf("I have a fresh iperf instance with pid %d waiting for your measurements :)\n", $iperf_pid);
 
    my $prev_alarm = alarm($timeout);
    eval {
-      local $SIG{ALRM} = sub { croak($$pcmd->TIMEOUT_MSG); };
+      local $SIG{ALRM} = sub { $self->iperf_reap; croak($$pcmd->TIMEOUT_MSG); };
 
       while (<STDIN>) {
          s/^(.*?)\r?\n$//;
@@ -63,28 +97,17 @@ sub process_request {
                $self->close_client_stdout;
                last SWITCH;
             }
-            if ($input =~ $$pcmd->Q_GET) {
-               $self->log(4, "Creating Iperf at TCP port $self->{bwm}{data_port}...");
-               my $child = BWMonitor::Iperf->new(port => $self->{bwm}{data_port});
-               push(@{ $self->{bwm}{children} }, $child);
-               my $pid = $child->start;
-               $self->log(4, "Started iperf backend with pid: $pid");
-               last SWITCH;
-            }
             if ($input =~ $$pcmd->R_CSV) {
                my $csv = $1;
                $self->log(4, "Result (CSV): %s", $csv);
-               my $child  = shift(@{ $self->{bwm}{children} });
-               my $killed = $child->stop;
-               $self->log(4, "Killed off $killed iperf child processes");
                last SWITCH;
             }
-            # for debugging only, to be removed
-            if ($input =~ /^_dump/) {
-               printf("%s%s", Dumper($self), $$pcmd->NL);
-               $self->get_client_info;
-               last SWITCH;
-            }
+#            # for debugging only, to be removed
+#            if ($input =~ /^_dump/) {
+#               printf("%s%s", Dumper($self), $$pcmd->NL);
+#               $self->get_client_info;
+#               last SWITCH;
+#            }
          }
          alarm($timeout);
       }
@@ -94,13 +117,14 @@ sub process_request {
    if ($@ eq $$pcmd->TIMEOUT_MSG) {
       printf("%s%s", $$pcmd->TIMEOUT_MSG, $$pcmd->NL);
    }
+   $self->iperf_reap;
 }
 
 sub DESTROY {
    my $self = shift;
-   while(defined(my $ch = shift(@{ $self->{bwm}{children} }))) {
-      $ch->stop;
-   }
+   $self->log(4, "%s instance %d reached end of life. Trying to kill off iperf child pid [ %d ]\n",
+      ref($self), $$, $self->{bwm}{iperf_slave_pid});
+   $self->iperf_reap;
 }
 
 #---
