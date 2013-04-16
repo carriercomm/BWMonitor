@@ -8,6 +8,7 @@ use warnings;
 
 use Carp;
 use Getopt::Long qw(:config gnu_getopt auto_help auto_version);
+use Data::Dumper;
 use BWMonitor::ProtocolCommand;
 use BWMonitor::Client;
 
@@ -39,5 +40,5 @@ $client->connect or croak;
 $buf = $client->recv;
 print("Server said: $buf\n");
 my $result = $client->download;
-print("Got: $result\n") if ($result);
+printf("Got: %s\n", Dumper($result)) if ($result);
 $client->disconnect;

@@ -6,6 +6,7 @@ package BWMonitor::Client;
 
 use strict;
 use warnings;
+use feature ':5.10';
 
 use Carp;
 use IO::Socket::INET;
@@ -93,13 +94,39 @@ sub recv {
 
 sub download {
    my $self = shift;
+   my $fh;
+   
    $self->send($self->{pcmd}->_sub('get', 'q'));
    printf("%s\n", $self->recv);
-   my $result_csv = qx(iperf -y C -c $self->{remote_host} -p $self->{remote_port_d});
-   chomp($result_csv);
-   $self->send("%s %s", $self->{pcmd}->Q_CSV, $result_csv);
-   return $self;
+
+   my $child_pid = open($fh, '-|', 'iperf', '-y', 'C', '-c', $self->{remote_host}, '-p', $self->{remote_port_d})
+     // croak("Can't fork: $!");
+
+   if ($child_pid) {
+      my $res;
+#      while (defined($res = <$fh>)) {
+#         chomp($res);
+#         last;
+#      }
+      chomp($res = <$fh>);
+      close($fh) or carp($!);
+      waitpid($child_pid, 0);
+      $self->send("%s %s", $self->{pcmd}->Q_CSV, $res);
+      return $res;
+   }
+   else {
+      exit;
+   }
 }
+#sub download {
+#   my $self = shift;
+#   $self->send($self->{pcmd}->_sub('get', 'q'));
+#   printf("%s\n", $self->recv);
+#   my $result_csv = qx(iperf -y C -c $self->{remote_host} -p $self->{remote_port_d});
+#   chomp($result_csv);
+#   $self->send("%s %s", $self->{pcmd}->Q_CSV, $result_csv);
+#   return $self;
+#}
 
 sub upload {
    my $self = shift;

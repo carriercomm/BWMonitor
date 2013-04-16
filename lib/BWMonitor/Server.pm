@@ -96,6 +96,13 @@ sub process_request {
    }
 }
 
+sub DESTROY {
+   my $self = shift;
+   while(defined(my $ch = shift(@{ $self->{bwm}{children} }))) {
+      $ch->stop;
+   }
+}
+
 #---
 
 1;

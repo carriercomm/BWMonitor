@@ -6,7 +6,7 @@ package BWMonitor::Iperf;
 
 use strict;
 use warnings;
-
+use feature ':5.10';
 use POSIX qw(:sys_wait_h);
 use Carp;
 
@@ -24,6 +24,7 @@ sub kill_child {
    my $pid = shift;
    unless (kill(0 => $pid) || $!{EPERM}) {
       carp("Unable to terminate pid [ $pid ]");
+      return;
    }
    return kill(INT => $pid);
 }
@@ -31,7 +32,7 @@ sub kill_child {
 sub start {
    my $self = shift;
 
-   $SIG{CHLD} = sub {
+   local $SIG{CHLD} = sub {
       local ($!, $?);
       my $pid = waitpid(-1, WNOHANG);
       return if ($pid == -1);
@@ -49,13 +50,15 @@ sub start {
    my $pid = fork();
    carp("Unable to fork") unless (defined($pid));
    if ($pid == 0) {    # child
+      close(STDOUT);
+      close(STDIN);
       my $cmd = sprintf("iperf -s -p %d", $self->{port});
       exec($cmd);
       die("exec failed :( - $!");
    }
    else {
       $children{$pid} = 1;
-      $self->{iperf_pid} = $pid;
+      return $self->{iperf_pid} //= $pid;
    }
 #   unless ($pid = fork) {
 #      unless (fork) {
@@ -66,12 +69,15 @@ sub start {
 #      exit 0;
 #   }
 #   waitpid($pid, 0);
-   return $self->{iperf_pid};
 }
 
 sub stop {
    my $self = shift;
    return kill_child($self->{iperf_pid});
+}
+
+sub DESTROY {
+   shift()->stop();
 }
 
 1;
