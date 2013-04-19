@@ -37,19 +37,44 @@ sub new {
 #   Running Iperf Server as a daemon
 #   The Iperf daemon process ID : 12850
 # $
+
 sub iperf_spawn {
    my $self = shift;
    return if ($self->{bwm}{iperf_slave_pid});
-   my $pid = fork;
-   croak("Unable to fork off iperf daemon at port $self->{bwm}{data_port} - $!") unless (defined($pid));
-   if ($pid == 0) {
-      setpgrp;  # please work!
+   my ($pid, $fh);
+   $pid = open($fh, '-|');
+   defined($pid) or croak("Can't fork - $!");
+
+   if ($pid) {    # parent
+      print("I ($$) think I started an iperf instance with pid $pid but it's probably some other pid...\n");
+      while (<$fh>) {
+         # try to capture the actual PID, which comes on STDERR
+         chomp($fh);
+         $self->log(4, "Iperfs parent [ $$ ] read: $_");
+      }
+      close($fh) or carp("Kid exited: $?");
+      #$self->{bwm}{iperf_slave_pid} = $pid;
+      return $self->{bwm}{iperf_slave_pid};
+   }
+   else {         # child
+      open(STDERR, ">&STDOUT") or croak("Can't dup STDOUT: $!");
       exec("iperf -s -D -p $self->{bwm}{data_port}") || croak("Exec failed $!");
    }
-   $self->{bwm}{iperf_slave_pid} = $pid;
-   print("I ($$) think I started an iperf instance with pid $pid but it's probably some other pid...\n");
-   return $self->{bwm}{iperf_slave_pid};
 }
+
+#sub iperf_spawn {
+#   my $self = shift;
+#   return if ($self->{bwm}{iperf_slave_pid});
+#   my $pid = fork;
+#   croak("Unable to fork off iperf daemon at port $self->{bwm}{data_port} - $!") unless (defined($pid));
+#   if ($pid == 0) {
+#      setpgrp;  # please work!
+#      exec("iperf -s -D -p $self->{bwm}{data_port}") || croak("Exec failed $!");
+#   }
+#   $self->{bwm}{iperf_slave_pid} = $pid;
+#   print("I ($$) think I started an iperf instance with pid $pid but it's probably some other pid...\n");
+#   return $self->{bwm}{iperf_slave_pid};
+#}
 
 sub iperf_reap {
    my $self = shift;
