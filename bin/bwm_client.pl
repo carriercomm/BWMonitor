@@ -35,7 +35,7 @@ my $client = BWMonitor::Client->new(
 );
 
 my $buf;
-$client->connect or croak;
+$client->connect or croak($!);
 #$client->send("This is a little test");
 $buf = $client->recv;
 print("Server said: $buf\n");
