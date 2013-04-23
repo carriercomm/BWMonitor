@@ -23,7 +23,7 @@ sub new {
 
    @cfg{ keys(%args) } = values(%args);
 
-   $cfg{log_fh} = IO::File->new($cfg{log_file}, O_CREAT | O_APPEND) or croak("Unable to open logfile - $!");
+   $cfg{log_fh} = IO::File->new($cfg{log_file}, O_CREAT | O_WRONLY | O_APPEND) or croak("Unable to open logfile - $!");
 
    return bless(\%cfg, $class);
 }
@@ -41,7 +41,7 @@ sub log {
    if (@_) {
       $msg = sprintf($msg, @_);
    }
-   print($self->_fh $msg, BWMonitor::ProtocolCommand::NL);
+   print({ $self->{log_fh} } $msg, BWMonitor::ProtocolCommand::NL);
    return $self;
 }
 
