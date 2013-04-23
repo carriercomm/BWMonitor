@@ -11,26 +11,24 @@ tasks depending on having the role of a client or server.
 
 ## Licence:
 
-BWMonitor is released under GPL.
+BWMonitor is released under GPLv2.
 
 ## Technical
 
-The server listens on a TCP socket, running continously, acting as
-a command channel. Clients then connect to this and send predefined
-commands with parameters. If the requested operation is reading/writing
-a certain amount of data, the server replies with a status and parameters
-for where to connect via UDP. The client then opens a new connection via
-UDP, kicks off one byte over the wire to the server (just to make the
-server aware of the connection, as UDP is stateless), sets a timestamp,
-then starts to read until the requested data size is read, and sets
-the end timestamp. The data is discarded immediately, as the purpose
-on this channel is _only_ to measure the speed. The server, in turn,
-just pours out data directly to the UDP socket read from `/dev/urandom`
-(or any other open filehandle given - this is just the original thought)
-until the specified data size is transferred.  The client may then send
-the results of it's test back to the server via the TCP control channel
-for logging purposes, and then either disconnect, or request some other
-operation (just to not exclude possible future additional features).
+
+The server listens on a TCP socket, running continously, acting as a
+control/command channel. Clients connect and send predifined commands,
+including results of the measurement back to the server. The server will
+spawn off an iperf instance in the background for each connection and
+kill it off again when the client disconnects, or when the client sends
+back results of the measurement. The results are logged on the server,
+and passed on to a local Graphite instance for displaying graphs.
+
+The first version of this application was implemented in pure Perl,
+but as performance was crap, I changed over to using "iperf" as the
+measurement backend. I might go back to pure Perl if I can improve the
+performance to be on par with iperf.
+
 
 ### Platform
 
@@ -38,8 +36,7 @@ operation (just to not exclude possible future additional features).
 
 ## Summary
 
-Basically, just a simplified rip-off of the FTP protocol, trimmed down
-for a specific need, but hopefully extensible for other purposes.
+A wrapper around "iperf" for easily logging and passing off data to Graphite.
 
 ## Author
 
