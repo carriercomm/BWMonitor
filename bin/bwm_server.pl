@@ -5,9 +5,10 @@
 
 use strict;
 use warnings;
+use feature ':5.10';
 
-use POSIX ();
-use IO::File;
+#use POSIX ();
+#use IO::File;
 use Getopt::Long qw(:config gnu_getopt auto_help auto_version);
 use BWMonitor::ProtocolCommand;
 use BWMonitor::Server;

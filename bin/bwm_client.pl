@@ -5,6 +5,7 @@
 
 use strict;
 use warnings;
+use feature ':5.10';
 
 use Carp;
 use Getopt::Long qw(:config gnu_getopt auto_help auto_version);

@@ -11,10 +11,11 @@ use warnings;
 use feature ':5.10';
 
 use Carp;
-use POSIX qw(setsid);
-use IO::File;
-use IO::Socket::INET;
+#use POSIX qw(setsid);
+#use IO::File;
+#use IO::Socket::INET;
 use BWMonitor::ProtocolCommand;
+use BWMonitor::ResultLogger;
 use Data::Dumper;
 
 sub new {
@@ -84,6 +85,7 @@ sub process_request {
                if ($input =~ $$pcmd->R_CSV) {
                   my $csv = $1;
                   $self->log(4, "[ $$ ]: Result (CSV): %s", $csv);
+                  BWMonitor::ResultLogger->new->log($csv) or carp("Error trying to log results - $!");
                   last INPUT;
                }
             }
