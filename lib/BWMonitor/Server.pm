@@ -16,7 +16,11 @@ use Carp;
 #use IO::Socket::INET;
 use BWMonitor::ProtocolCommand;
 use BWMonitor::ResultLogger;
+use BWMonitor::Graphite;
 use Data::Dumper;
+
+our $VERSION = '';
+
 
 sub new {
    my $class = shift;
@@ -56,9 +60,10 @@ sub log_time {
 }
 
 sub process_request {
-   my $self    = shift;
-   my $timeout = 30;
-   my $pcmd    = \$self->{bwm}{pcmd};    # shortcut, as this obj is often referred
+   my $self     = shift;
+   my $pcmd     = \$self->{bwm}{pcmd};          # shortcut, as this obj is often referred
+   my $graphite = BWMonitor::Graphite->new();
+   my $timeout  = 30;
 
    iperf_spawn($self->{bwm}{data_port}) or return;
    printf("Welcome to %s (%s)%s", ref($self), $$, $$pcmd->NL);
@@ -84,9 +89,18 @@ sub process_request {
                }
                if ($input =~ $$pcmd->R_CSV) {
                   my $csv = $1;
+                  my ($bw) = $csv =~ /,([^,]+)$/;
                   $self->log(4, "[ $$ ]: Result (CSV): %s", $csv);
-                  BWMonitor::ResultLogger->new->log($csv) or carp("Error trying to log results - $!");
+                  my $rs = BWMonitor::ResultLogger->new->log($csv) or carp("Error trying to log results - $!");
+                  $rs->log("Bandwidth: $bw");
+                  my $gp = BWMonitor::Graphite->new;
+                  $gp->send('bwmonitor.results.test', $bw, time);
+                  $gp->disconnect;
                   last INPUT;
+               }
+               if ($input =~ /_dump/) {
+                  print(Dumper($self));
+                  last SWITCH;
                }
             }
             alarm($timeout);

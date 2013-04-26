@@ -13,6 +13,8 @@ use IO::File;
 use Data::Dumper;
 use BWMonitor::ProtocolCommand;
 
+our $VERSION = '';
+
 sub new {
    my $class = shift;
    my %args  = @_;
@@ -23,7 +25,9 @@ sub new {
 
    @cfg{ keys(%args) } = values(%args);
 
-   $cfg{log_fh} = IO::File->new($cfg{log_file}, O_CREAT | O_WRONLY | O_APPEND) or croak("Unable to open logfile - $!");
+   $cfg{log_fh} = IO::File->new($cfg{log_file}, O_CREAT | O_WRONLY | O_APPEND)
+     or croak("Unable to open logfile - $!")
+     unless ($cfg{log_fh});
 
    return bless(\%cfg, $class);
 }

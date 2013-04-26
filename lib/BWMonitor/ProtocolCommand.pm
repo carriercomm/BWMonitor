@@ -7,18 +7,21 @@ package BWMonitor::ProtocolCommand;
 use strict;
 use warnings;
 
-our $VERSION = '0.0.7';
+our $VERSION = '0.0.8';
 
 use constant {
-   TIMEOUT     => 5,
-   SERVER_PORT => 10443,
-   DATA_PORT   => 10444,
-   NL          => "\012\015",
-   R_CSV       => qr/_RESULT_CSV\s+(.*)$/,
-   Q_CSV       => '_RESULT_CSV',
-   Q_QUIT      => '_QUIT',
-   Q_CLOSE     => '_CLOSE',
-   TIMEOUT_MSG => 'Connection idle timeout, bye.',
+   TIMEOUT       => 5,
+   SERVER_PORT   => 10443,
+   DATA_PORT     => 10444,
+   NL            => "\012\015",
+   R_CSV         => qr/_RESULT_CSV\s+(.*)$/,
+   Q_CSV         => '_RESULT_CSV',
+   Q_QUIT        => '_QUIT',
+   Q_CLOSE       => '_CLOSE',
+   TIMEOUT_MSG   => 'Connection idle timeout, bye.',
+   GRAPHITE_HOST => '10.58.83.252',
+   GRAPHITE_PORT => 2003,
+   GRAPHITE_PROT => 'tcp',
 };
 
 # Just a simple way of instantiating this class for less typing

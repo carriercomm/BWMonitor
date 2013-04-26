@@ -13,6 +13,8 @@ use IO::Socket::INET;
 use Data::Dumper;
 use BWMonitor::ProtocolCommand;
 
+our $VERSION = '';
+
 sub new {
    my $class = shift;
    my %args  = @_;
@@ -66,8 +68,9 @@ sub send {
    my $self = shift;
    my $s    = $self->sock;
    if ($self->connected) {
-      if (@_ > 1) {
-         printf($s shift . $self->{pcmd}->NL, @_);
+      if (scalar(@_) > 1) {
+         my $msg = shift;
+         printf($s $msg . $self->{pcmd}->NL, @_);
       }
       elsif (@_ == 1) {
          print($s @_, $self->{pcmd}->NL);
@@ -85,7 +88,7 @@ sub recv {
    if ($self->connected) {
       my $buf = <$s>;
       chomp($buf);
-      return $buf;
+      return wantarray ? ($buf, $self) : $buf;
    }
    return undef;
 }
@@ -94,13 +97,13 @@ sub download {
    my $self = shift;
    my $result_csv = qx(iperf -y C -c $self->{remote_host} -p $self->{remote_port_d});
    chomp($result_csv);
-   $self->send("%s %s", $self->{pcmd}->Q_CSV, $result_csv);
+   $self->send("%s %d,%s", $self->{pcmd}->Q_CSV, time, $result_csv);
    return $result_csv;
 }
 
-sub upload {
-   my $self = shift;
-}
+#sub upload {
+#   my $self = shift;
+#}
 
 1;
 __END__
