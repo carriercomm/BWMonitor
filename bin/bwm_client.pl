@@ -8,18 +8,21 @@ use warnings;
 use feature ':5.10';
 
 use Carp;
+use FindBin;
 use Getopt::Long qw(:config auto_help auto_version no_ignore_case);
 use Pod::Usage;
 use Data::Dumper;
+
+#use lib "$FindBin::Bin/../lib";
+
 use BWMonitor::ProtocolCommand;
 use BWMonitor::Client;
 
-$main::VERSION = '2013-04-26';
+$main::VERSION = '2013-05-03';
 
-my $pcmd = BWMonitor::ProtocolCommand->new();
 my $opts = {
-   port      => $pcmd->SERVER_PORT,
-   data_port => $pcmd->DATA_PORT,
+   port      => BWMonitor::ProtocolCommand::SERVER_PORT,
+   data_port => BWMonitor::ProtocolCommand::DATA_PORT,
 };
 
 GetOptions(
@@ -44,15 +47,18 @@ my $client = BWMonitor::Client->new(
    remote_port_d => $opts->{data_port},
 );
 
-my $buf;
+#my $buf;
 $client->connect or croak($!);
 #$client->send("This is a little test");
-$buf = $client->recv;
-print("Server said: $buf\n");
+#$buf = $client->recv;
+#print("Server said: $buf\n");
 my $result = $client->download;
 printf("Got: %s\n", Dumper($result)) if ($result);
 #printf("End info: %s", $client->recv);
 $client->disconnect;
+
+
+
 
 __END__
 

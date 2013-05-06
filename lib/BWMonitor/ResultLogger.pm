@@ -13,7 +13,7 @@ use IO::File;
 use Data::Dumper;
 use BWMonitor::ProtocolCommand;
 
-our $VERSION = '';
+our $VERSION = '2013-04-26';
 
 sub new {
    my $class = shift;

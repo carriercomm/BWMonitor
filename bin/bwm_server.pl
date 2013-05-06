@@ -8,14 +8,19 @@ use warnings;
 use feature ':5.10';
 
 use Carp;
+use FindBin;
 use Getopt::Long qw(:config auto_help auto_version no_ignore_case);
 use Pod::Usage;
+use Data::Dumper;
+
+#use lib "$FindBin::Bin/../lib";
+
 use BWMonitor::ProtocolCommand;
 use BWMonitor::Server;
 
-$main::VERSION = '2013-04-26';
+$main::VERSION = '2013-05-03';
 
-my $pcmd   = BWMonitor::ProtocolCommand->new();
+my $pcmd = BWMonitor::ProtocolCommand->new;
 
 my $opts = {
    ctrl_port   => $pcmd->SERVER_PORT,
@@ -35,8 +40,12 @@ GetOptions(
 pod2usage(-verbose => 1) && exit(0) if ($opts->{help});
 pod2usage(-verbose => 2) && exit(0) if ($opts->{man});
 
-my $server = BWMonitor::Server->new(pcmd => $pcmd, data_port => $opts->{data_port});
-$server->run(conf_file => $opts->{config_file}, port => $opts->{ctrl_port});
+#print(Dumper($opts));
+
+BWMonitor::Server->new(pcmd => $pcmd, data_port => $opts->{data_port})
+  ->run(conf_file => $opts->{config_file}, port => $opts->{ctrl_port});
+
+
 
 __END__
 

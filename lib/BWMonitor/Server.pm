@@ -4,43 +4,27 @@
 
 package BWMonitor::Server;
 
-use base qw(Net::Server::Fork);
+use base qw(Net::Server);
 
 use strict;
 use warnings;
 use feature ':5.10';
 
 use Carp;
-#use POSIX qw(setsid);
-#use IO::File;
-#use IO::Socket::INET;
 use BWMonitor::ProtocolCommand;
 use BWMonitor::ResultLogger;
 use BWMonitor::Graphite;
 use Data::Dumper;
 
-our $VERSION = '';
-
-
-sub new {
-   my $class = shift;
-   my %args  = @_;
-   my %cfg   = (
-      pcmd            => undef,    # BWMonitor::ProtocolCommand
-      data_port       => undef,
-   );
-   # merge args with cfg
-   @cfg{ keys(%args) } = values(%args);
-   return bless({ bwm => \%cfg }, $class);
-}
+our $VERSION = '2013-05-03';
 
 sub iperf_spawn {
-   my $port = shift;
+   my $port = shift || BWMonitor::ProtocolCommand::DATA_PORT;
    my $pid;
    unless ($pid = fork) {
       unless (fork) {
-         close(STDERR);
-         close(STDOUT);
+         #close(STDERR);
+         #close(STDOUT);
          exec('iperf', '-s', '-D', '-p', $port) || croak("Exec failed $!");
       }
       exit(0);
@@ -49,8 +33,36 @@ sub iperf_spawn {
    return 1;
 }
 
+#sub iperf_spawn {
+#   my $port = shift || BWMonitor::ProtocolCommand::DATA_PORT;
+#   my $pid = fork;
+#   if (defined($pid) && $pid == 0) {
+#      close(STDERR);
+#      close(STDIN);
+#      exec('iperf', '-s', '-p', $port);
+#   }
+#   elsif ($pid) {
+#      waitpid($pid, 0);
+#   }
+#}
+
 sub iperf_reap {
    return system('killall -9 iperf 2>/dev/null');
+}
+
+sub new {
+   my $class = shift;
+   my %args  = @_;
+   my %cfg   = (
+      pcmd      => undef,    # BWMonitor::ProtocolCommand
+      data_port => undef,
+   );
+   # merge args with cfg
+   @cfg{ keys(%args) } = values(%args);
+
+   #iperf_spawn;
+
+   return bless({ bwm => \%cfg }, $class);
 }
 
 #--- Overridden methods ---
@@ -61,23 +73,23 @@ sub log_time {
 
 sub process_request {
    my $self     = shift;
-   my $pcmd     = \$self->{bwm}{pcmd};          # shortcut, as this obj is often referred
-   my $graphite = BWMonitor::Graphite->new();
+   my $pcmd     = \$self->{bwm}{pcmd};        # shortcut, as this obj is often referred
    my $timeout  = 30;
 
-   iperf_spawn($self->{bwm}{data_port}) or return;
+   #iperf_spawn($self->{bwm}{data_port}) or return;
    printf("Welcome to %s (%s)%s", ref($self), $$, $$pcmd->NL);
 
    my $prev_alarm = alarm($timeout);
    eval {
-      local $SIG{ALRM} = sub { iperf_reap; croak($$pcmd->TIMEOUT_MSG); };
+      local $SIG{ALRM} = sub { croak($$pcmd->TIMEOUT_MSG); };
 
     INPUT: {
          while (<STDIN>) {
-            s/^(.*?)\r?\n$//;
+            s/\A(.*?)\r?\n\Z//;
             next unless ($1);
             my $input = $1;
             printf("[Server]: You said: $input%s", $$pcmd->NL);
+            $self->log(4, "Client sent: %s", $input);
           SWITCH: {
                if ($input =~ $$pcmd->Q_QUIT) {
                   $self->server_close;
@@ -88,16 +100,16 @@ sub process_request {
                   last SWITCH;
                }
                if ($input =~ $$pcmd->R_CSV) {
-                  my $csv = $1;
-                  my ($bw) = $csv =~ /,([^,]+)$/;
-                  $self->log(4, "[ $$ ]: Result (CSV): %s", $csv);
-                  my $rs = BWMonitor::ResultLogger->new->log($csv) or carp("Error trying to log results - $!");
-                  $rs->log("Bandwidth: $bw");
-                  my $gp = BWMonitor::Graphite->new;
-                  $gp->send('bwmonitor.results.test', $bw, time);
-                  $gp->disconnect;
+                  my $host      = $1;
+                  my $timestamp = $2;
+                  my $csv       = $3;
+                  my ($bw)      = $csv =~ /,([^,]+)\Z/;
+                  #$self->log(4, "[ $$ ]: Result: %s %d %s", $host, $timestamp, $csv);
+                  BWMonitor::ResultLogger->new->log("%d %s %s", $timestamp, $host, $csv);
+                  #BWMonitor::Graphite->new->send($$pcmd->GRAPHITE_RES_PREFIX . $host, $bw, $timestamp)->disconnect;
                   last INPUT;
                }
+               # DEBUG
                if ($input =~ /_dump/) {
                   print(Dumper($self));
                   last SWITCH;
@@ -112,9 +124,12 @@ sub process_request {
    if ($@ eq $$pcmd->TIMEOUT_MSG) {
       printf("%s%s", $$pcmd->TIMEOUT_MSG, $$pcmd->NL);
    }
-   iperf_reap;
+   #iperf_reap;
 }
 
+sub DESTROY {
+   #iperf_reap;
+}
 
 #---
 

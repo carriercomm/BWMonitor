@@ -6,22 +6,24 @@ package BWMonitor::ProtocolCommand;
 
 use strict;
 use warnings;
+use feature ':5.10';
 
-our $VERSION = '0.0.8';
+our $VERSION = '2013-04-29';
 
 use constant {
-   TIMEOUT       => 5,
-   SERVER_PORT   => 10443,
-   DATA_PORT     => 10444,
-   NL            => "\012\015",
-   R_CSV         => qr/_RESULT_CSV\s+(.*)$/,
-   Q_CSV         => '_RESULT_CSV',
-   Q_QUIT        => '_QUIT',
-   Q_CLOSE       => '_CLOSE',
-   TIMEOUT_MSG   => 'Connection idle timeout, bye.',
-   GRAPHITE_HOST => '10.58.83.252',
-   GRAPHITE_PORT => 2003,
-   GRAPHITE_PROT => 'tcp',
+   TIMEOUT             => 5,
+   SERVER_PORT         => 10443,
+   DATA_PORT           => 10444,
+   NL                  => "\012\015",
+   TIMEOUT_MSG         => 'Connection idle timeout, bye.',
+   GRAPHITE_HOST       => '10.58.83.252',
+   GRAPHITE_PORT       => 2003,
+   GRAPHITE_PROT       => 'tcp',
+   GRAPHITE_RES_PREFIX => 'bwmonitor.results.',
+   Q_QUIT              => '_QUIT',
+   Q_CLOSE             => '_CLOSE',
+   Q_CSV               => '_RESULT_CSV',
+   R_CSV               => qr/\A_RESULT_CSV\s+([a-zA-Z0-9_-]+)\s+(\d+)\s+(.*)\Z/,
 };
 
 # Just a simple way of instantiating this class for less typing

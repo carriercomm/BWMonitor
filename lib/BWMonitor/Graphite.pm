@@ -11,7 +11,7 @@ use Carp;
 use IO::Socket::INET;
 use BWMonitor::ProtocolCommand;
 
-our $VERSION = '';
+our $VERSION = '2013-04-26';
 
 sub new {
    my $class = shift;
@@ -47,7 +47,8 @@ sub send {
    my $time  = shift || time;
    my $sock  = $self->connect;
    my $msg   = sprintf("%s %s %s%s", $path, $value, $time, BWMonitor::ProtocolCommand::NL);
-   return $sock->send($msg);
+   my $sent  = $sock->send($msg);
+   return wantarray ? ($self, $sent) : $self;
 }
 
 sub disconnect {

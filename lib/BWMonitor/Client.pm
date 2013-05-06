@@ -10,15 +10,16 @@ use feature ':5.10';
 
 use Carp;
 use IO::Socket::INET;
+use Sys::Hostname;
 use Data::Dumper;
 use BWMonitor::ProtocolCommand;
 
-our $VERSION = '';
+our $VERSION = '2013-04-29';
 
 sub new {
    my $class = shift;
    my %args  = @_;
-   my $pcmd  = BWMonitor::ProtocolCommand->new();    # singleton
+   my $pcmd  = BWMonitor::ProtocolCommand->new;    # singleton
    my %cfg   = (
       pcmd          => $pcmd,
       remote_host   => undef,
@@ -95,9 +96,9 @@ sub recv {
 
 sub download {
    my $self = shift;
-   my $result_csv = qx(iperf -y C -c $self->{remote_host} -p $self->{remote_port_d});
+   my $result_csv = qx(iperf -c $self->{remote_host} -p $self->{remote_port_d} -y C);
    chomp($result_csv);
-   $self->send("%s %d,%s", $self->{pcmd}->Q_CSV, time, $result_csv);
+   $self->send("%s %s %d %s", $self->{pcmd}->Q_CSV, hostname, time, $result_csv);
    return $result_csv;
 }
 
