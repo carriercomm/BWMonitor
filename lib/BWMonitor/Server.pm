@@ -75,7 +75,7 @@ sub process_request {
                      Timeout   => $$pcmd->TIMEOUT,
                      Type      => SOCK_DGRAM,
                   ),
-                  urnd_fh => IO::File->new('/dev/urandom', O_RDONLY),
+                  urnd_fh => IO::File->new('/dev/zero', O_RDONLY),
                   logger  => $self->{bwm}{logger},
                   pcmd    => $$pcmd
                );
