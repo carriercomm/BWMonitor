@@ -6,6 +6,8 @@ package BWMonitor::Consumer;
 
 use strict;
 use warnings;
+use Carp;
+use Data::Dumper;
 
 sub new {
    my $class = shift;
@@ -16,7 +18,9 @@ sub new {
       pcmd    => undef,    # BWMonitor::ProtcolCommand
    );
    @cfg{ keys(%args) } = values(%args);
-   return unless (defined($cfg{sock_fh}));
+   unless (defined($cfg{sock_fh})) {
+      croak(Dumper($class, \@_));
+   }
    binmode($cfg{sock_fh});    # will be reading binary
    return bless(\%cfg, $class);
 }
@@ -55,6 +59,7 @@ sub recv {
    my $buf;
    $self->{sock_fh}->recv($buf, $buf_size);
    return 0 unless ($buf);
+   #printf("%s->recv() : Read %d bytes...\n", __PACKAGE__, length($buf));
    return wantarray ? (length($buf), $buf) : length($buf);
 }
 

@@ -44,7 +44,7 @@ sub process_request {
    my $timeout = 30;
    my $pcmd    = \$self->{bwm}{pcmd};    # shortcut, as this obj is often referred
 
-   printf(qq(Welcome to %s (%s)%s), ref($self), $$, $$pcmd->NL);
+   printf("Welcome to %s (%s)%s", ref($self), $$, $$pcmd->NL);
 
    my $prev_alarm = alarm($timeout);
    eval {
@@ -68,6 +68,15 @@ sub process_request {
                my $data_size = $1;
                my $buf_size  = $2;
                $self->log(4, "[Server]: sample size: %d, buf size: %d", $data_size, $buf_size);
+               my $ret = sprintf("%s%s", $$pcmd->_sub('get', 'a', $self->{bwm}{udp_port}, $data_size, $buf_size), $$pcmd->NL);
+               $self->log(4, "[Server]: $ret");
+               print($ret);
+               last SWITCH;
+            }
+            if ($input =~ $$pcmd->Q_DL) {
+               my $data_size = $1;
+               my $buf_size  = $2;
+               $self->log(4, "[Server]: Request to DL $data_size bytes in $buf_size byte chunks");
                my $p = BWMonitor::Producer->new(
                   sock_fh => IO::Socket::INET->new(
                      LocalPort => $self->{bwm}{udp_port},
@@ -79,10 +88,7 @@ sub process_request {
                   logger  => $self->{bwm}{logger},
                   pcmd    => $$pcmd
                );
-               my $ret =
-                 sprintf("%s%s", $$pcmd->_sub('get', 'a', $self->{bwm}{udp_port}, $data_size, $buf_size), $$pcmd->NL);
-               $self->log(4, "[Server]: $ret");
-               print($ret);
+               $self->log(4, "About to write random data to socket");
                $p->write_rand($data_size, $buf_size, sub { $self->log(4, @_); });
                last SWITCH;
             }

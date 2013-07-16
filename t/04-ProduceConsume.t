@@ -41,6 +41,7 @@ defined(my $kidpid = fork()) or die("Can't fork: $!");
 
 # child / client
 if ($kidpid == 0) {
+   sleep(1);
    my $client_control_socket = IO::Socket::INET->new(
       PeerAddr => $host,
       PeerPort => $port_c,
@@ -64,18 +65,17 @@ if ($kidpid == 0) {
       if ($ret =~ $pc->A_GET) {
          my $datasize = $1;
          my $bufsize  = $2;
-         my $ip       = $3;
-         my $port     = $4;
+         my $port     = $3;
          my $cc       = new_ok(
             'BWMonitor::Consumer' => [
-               IO::Socket::INET->new(
-                  PeerAddr => $ip,
+               sock_fh => IO::Socket::INET->new(
+                  PeerAddr => $host,
                   PeerPort => $port,
                   Proto    => $prot_d,
                   Timeout  => $pc->TIMEOUT,
                   Type     => SOCK_DGRAM,
                ),
-               $logger, $pc
+               logger => $logger, pcmd => $pc
             ]
          );
          my ($read, $elapsed) = $cc->read_rand($datasize, $bufsize);
@@ -121,15 +121,16 @@ while (my $c = $server_control_socket->accept) {
       elsif ($ret =~ $pc->Q_GET) {
          my $sp = new_ok(
             'BWMonitor::Producer',
-            [  IO::Socket::INET->new(
+            [  sock_fh => IO::Socket::INET->new(
                   LocalAddr => $host,
                   LocalPort => $port_d,
                   Proto     => $prot_d,
                   Timeout   => $pc->TIMEOUT,
                   Type      => SOCK_DGRAM,
                ),
-               IO::File->new('/dev/urandom', O_RDONLY),
-               $logger, $pc
+               urnd_fh => IO::File->new('/dev/zero', O_RDONLY),
+               logger  => $logger,
+               pcmd    => $pc
             ]
          );
          printf($c "%s\n", $pc->_sub('get', 'a', $port_d));
@@ -139,6 +140,7 @@ while (my $c = $server_control_socket->accept) {
          my $bytes   = $1;
          my $seconds = $2;
          printf("[Server]: %d bytes in %f seconds from %s:%d\n", $bytes, $seconds, $c->peerhost, $c->peerport);
+         printf("[Server]: That should be %0.2f megabit pr second\n", $logger->to_mbit($bytes, $seconds));
       }
       elsif ($ret =~ $pc->Q_QUIT) {
          printf(qq([Server]: Got the kill command, talas...\n));

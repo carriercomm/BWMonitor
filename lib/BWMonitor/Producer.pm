@@ -70,18 +70,18 @@ sub write_rand {
    my $self     = shift;
    my $bytes    = shift || $self->pcmd->SAMPLE_SIZE;
    my $buf_size = shift || $self->pcmd->BUF_SIZE;
-#   my $cb       = shift;                               # callback code ref
+   my $cb       = shift;                               # callback code ref
    
    my ($read, $written, $buf, $ret) = (0, 0, undef, 0);
 
-#   my $_cb = sub {
-#      if (ref($cb) eq 'CODE') {
-#         $cb->(@_);
-#      }
-#      else {
-#         print(STDERR "BWMonitor::Producer::write_rand(): Callback not defined. Arg: @_\n");
-#      }
-#   };
+   my $_cb = sub {
+      if (ref($cb) eq 'CODE') {
+         $cb->(@_);
+      }
+      else {
+         print(STDERR "BWMonitor::Producer::write_rand(): Callback not defined. Arg: @_\n");
+      }
+   };
 
    $self->recv(1);                                     # hack, must do one recv to get peer addr
 
@@ -91,14 +91,14 @@ sub write_rand {
       if ($ret && $ret > 0) {
          $read = $ret;
          $ret = $self->send($buf, $buf_size);
-         #$_cb->($ret);
+         $_cb->($ret);
          if ($ret && $ret >= 0) {
             $written += $ret;
          }
-         #$_cb->($written);
+         $_cb->($written);
       }
    }
-#   $_cb->("Done writing");
+   $_cb->("Done writing");
    my $t_elapsed = $self->logger->t_stop($t_start);
    return wantarray ? ($written, $t_elapsed) : $written;
 }

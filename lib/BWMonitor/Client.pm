@@ -96,15 +96,16 @@ sub recv {
 
 sub download {
    my $self = shift;
-   print("Sending request for Dl to server...\n");
+   print("Sending request for DL to server...\n");
    my $status = $self->send($self->{pcmd}->_sub('get', 'q', $self->{data_size}, $self->{buf_size}))->recv;
    #my $status = $self->recv;
-   #print("status: ", Dumper($status), $self->{pcmd}->NL);
+   print("status: ", Dumper($status), $self->{pcmd}->NL);
    if ($status =~ $self->{pcmd}->A_GET) {
       print("Ready to download...\n");
       my $sample_size = $1;
       my $buf_size    = $2;
       my $udp_port    = $3;
+
       my $consumer    = BWMonitor::Consumer->new(
          sock_fh => IO::Socket::INET->new(
             PeerAddr => $self->{remote_host},
@@ -116,8 +117,11 @@ sub download {
          pcmd   => $self->{pcmd},
          logger => $self->{logger}
       );
+
+      $self->send($self->{pcmd}->_sub('get', 'd', $sample_size, $buf_size));
       my ($read, $elapsed) = $consumer->read_rand($sample_size, $buf_size);
       $self->send($self->{pcmd}->_sub('get', 'r', $read, $elapsed));    # log result back to server
+      
       return $self->{logger}->to_mbit($read, $elapsed);
    }
    else {

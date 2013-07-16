@@ -7,6 +7,7 @@ use Test::More;
 use IO::Socket::INET;
 use BWMonitor::ProtocolCommand;
 use BWMonitor::Consumer;
+use BWMonitor::Logger;
 
 BEGIN {
    use_ok('BWMonitor::Consumer');
@@ -29,7 +30,9 @@ if ($kidpid) {    # parent
    my $buf = 0b0000;
    while ($buf != 0b1000) {
       $ss->recv($buf, BWMonitor::ProtocolCommand::BUF_SIZE);
+      printf("Received buffer\n");
       $ss->send('0' x BWMonitor::ProtocolCommand::BUF_SIZE);
+      printf("Sent buffer\n");
    }
    close($ss);
    done_testing();
@@ -43,12 +46,13 @@ else {    # child
       PeerPort => BWMonitor::ProtocolCommand::DATA_PORT,
       Timeout  => BWMonitor::ProtocolCommand::TIMEOUT,
    ) or die($!);
-   my $c = BWMonitor::Consumer->new($cs);
+   my $c = BWMonitor::Consumer->new(sock_fh => $cs, pcmd => BWMonitor::ProtocolCommand->new, logger => BWMonitor::Logger->new);
    ok(defined($c), 'new() created an instance of Consumer');
    ok($c->isa('BWMonitor::Consumer'), 'Instance is correct class');
 
    $cs->send(0b0000);
    my ($read, $time) = $c->read_rand();
+   #$cs->send(0b1000);
    print("Bytes read: $read, time: $time\n");
    
 
