@@ -1,6 +1,6 @@
 # Licence: GPL
-# Author: Odd Eivind Ebbesen <odd@oddware.net>
-# Date: 2013-03-13 19:02:07
+# Starting over... :(
+# Odd, 2013-07-16 11:16:18
 
 package BWMonitor::Server;
 
@@ -10,22 +10,13 @@ use strict;
 use warnings;
 
 use Carp;
-use IO::File;
-use IO::Socket::INET;
-use BWMonitor::ProtocolCommand;
-use BWMonitor::Logger;
-use BWMonitor::Producer;
-use BWMonitor::Consumer;
 
-use Data::Dumper;
 
 sub new {
    my $class = shift;
    my %args  = @_;
    my %cfg = (
-      pcmd     => undef,    # BWMonitor::ProtocolCommand
-      logger   => undef,    # BWMonitor::Logger
-      udp_port => undef,
+      pcmd => BWMonitor::Cmd->new,
    );
    # merge args with cfg
    @cfg{ keys(%args) } = values(%args);
@@ -33,16 +24,26 @@ sub new {
    return bless({ bwm => \%cfg }, $class);
 }
 
-#--- Overridden methods ---
+sub to_mbit {
+   my $self    = shift; # not used
+   my $bytes   = shift;
+   my $seconds = shift;
+   return (($bytes * 8) / $seconds) / 1000 / 1000;
+}
+
 sub log_time {
    my ($sec, $min, $hour, $day, $mon, $year) = localtime;
    return sprintf "%04d-%02d-%02d_%02d:%02d:%02d", $year + 1900, $mon + 1, $day, $hour, $min, $sec;
 }
 
+
 sub process_request {
    my $self    = shift;
    my $timeout = 30;
    my $pcmd    = \$self->{bwm}{pcmd};    # shortcut, as this obj is often referred
+
+   my $size_dl  = $$pcmd->S_DATA;        # may be changed by client
+   my $size_buf = $$pcmd->S_BUF;         # may be changed by client
 
    printf("Welcome to %s (%s)%s", ref($self), $$, $$pcmd->NL);
 
@@ -56,56 +57,48 @@ sub process_request {
          my $input = $1;
          #printf("You said: $input%s", $$pcmd->NL);
        SWITCH: {
+            # CMD from client to close all connections and shut down
             if ($input =~ $$pcmd->Q_QUIT) {
+               $self->log(4, "Client tells me to shut down...");
                $self->server_close;
                last SWITCH;
             }
+            # CMD from client to close connection
             if ($input =~ $$pcmd->Q_CLOSE) {
+               $self->log(4, "Client tells me to close client connection...");
                $self->close_client_stdout;
                last SWITCH;
             }
-            if ($input =~ $$pcmd->Q_GET) {
-               my $data_size = $1;
-               my $buf_size  = $2;
-               $self->log(4, "[Server]: sample size: %d, buf size: %d", $data_size, $buf_size);
-               my $ret = sprintf("%s%s", $$pcmd->_sub('get', 'a', $self->{bwm}{udp_port}, $data_size, $buf_size), $$pcmd->NL);
-               $self->log(4, "[Server]: $ret");
-               print($ret);
+            # CMD from client to set DL size and buffer size
+            if ($input =~ $$pcmd->Q_SET_SIZES) {
+               $self->log(4, "Client sets sizes: $1 $2");
+               $size_dl  = $1;
+               $size_buf = $2;
+               print($$pcmd->A_ACK, $$pcmd->NL);
                last SWITCH;
             }
+            # CMD from client to start DL
             if ($input =~ $$pcmd->Q_DL) {
-               my $data_size = $1;
-               my $buf_size  = $2;
-               $self->log(4, "[Server]: Request to DL $data_size bytes in $buf_size byte chunks");
-               my $p = BWMonitor::Producer->new(
-                  sock_fh => IO::Socket::INET->new(
-                     LocalPort => $self->{bwm}{udp_port},
-                     Proto     => 'udp',
-                     Timeout   => $$pcmd->TIMEOUT,
-                     Type      => SOCK_DGRAM,
-                  ),
-                  urnd_fh => IO::File->new('/dev/zero', O_RDONLY),
-                  logger  => $self->{bwm}{logger},
-                  pcmd    => $$pcmd
-               );
-               $self->log(4, "About to write random data to socket");
-               $p->write_rand($data_size, $buf_size, sub { $self->log(4, @_); });
+               $self->log(4, "Client requested download");
+               my $total = 0;
+               while ($total < $size_dl) {
+                  my $buf = '.' x $size_buf;
+                  print($buf);
+                  $total += length($buf);
+               }
+               #print($$pcmd->NL);
                last SWITCH;
             }
-            if ($input =~ $$pcmd->R_GET) {
+            # CMD from client to log results
+            if ($input =~ $$pcmd->Q_LOG) {
                my $bytes   = $1;
                my $seconds = $2;
-
-               $self->log(
-                  1,
-                  sprintf(
-                     "%s %d bytes in %.2f seconds (%.2f Mbit) to peer %s:%d",
-                     log_time, $bytes,
-                     $seconds, (($bytes * 8) / $seconds) / 1000 / 1000,
-                     $self->get_property('peeraddr'), $self->get_property('peerport')
-                  )
-               );
+               my $msg     = $3;
+               my $speed   = $self->to_mbit($bytes, $seconds);
+               $self->log(4, "Client read $bytes bytes in $seconds seconds - speed: $speed Mbps ( $msg )");
+               last SWITCH;
             }
+            # ...
             # for debugging only, to be removed
             if ($input =~ /^_dump/) {
                printf("%s%s", Dumper($self), $$pcmd->NL);
@@ -122,9 +115,6 @@ sub process_request {
       printf("%s%s", $$pcmd->TIMEOUT_MSG, $$pcmd->NL);
    }
 }
-
-
-#---
 
 
 1;

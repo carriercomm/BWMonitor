@@ -1,19 +1,20 @@
 # Licence: GPL
 # Author: Odd Eivind Ebbesen <odd@oddware.net>
-# Date: 2013-02-27 10:48:48
+# Date: 2013-07-16 15:19:56
 
 package BWMonitor::Logger;
 
+use v5.10;
 use strict;
 use warnings;
 
-#use Carp;
 use Time::HiRes;
+#use Carp;
 
-my $_singleton;
 
 sub new {
-   return $_singleton //= bless({}, shift);
+   state $self;
+   return $self //= bless({}, shift);
 }
 
 sub t_start {
