@@ -66,18 +66,23 @@ sub new {
    return $self //= bless({}, shift);
 }
 
-sub q {
+sub _q {
    my $self = shift;
    my $href = shift // $_disp_tbl;    # call first time with undef
 
    while (my $k = shift(@_)) {
       my $type = ref($href->{$k});
       if ($type eq 'HASH') {
-         return $self->q($href->{$k}, @_);
+         return $self->_q($href->{$k}, @_);
       }
       elsif ($type eq 'CODE') {
          return $href->{$k}->(@_);
       }
    }
    return undef;    # if we got here, the path was wrong and nothing defined
+}
+
+sub q {
+   my $self = shift;
+   return $self->_q(undef, @_);
 }

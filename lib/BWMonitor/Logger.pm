@@ -47,5 +47,11 @@ sub log_transfer {
    printf("%s->%s: %d Mbps to %s\n", __PACKAGE__, 'log_transfer()', $mbps, $peer);
 }
 
+sub log_time {
+   my $self = shift;
+   my ($sec, $min, $hour, $day, $mon, $year) = localtime;
+   return sprintf "%04d-%02d-%02d_%02d:%02d:%02d", $year + 1900, $mon + 1, $day, $hour, $min, $sec;
+}
+
 1;
 __END__

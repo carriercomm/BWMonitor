@@ -35,7 +35,7 @@ if ($kidpid == 0) {
    exit 0;
 }
 
-sleep(1);
+sleep(5);
 my $_sock = IO::Socket::INET->new(
    PeerAddr => 'localhost',
    PeerPort => $_c->PORT,
@@ -50,26 +50,29 @@ my $_r; # receive buffer
 # get rid of welcome msg
 $_recv->(); 
 # Tell server the size of data to DL and buf size
-$_send->(sprintf("_SETS %d %d", $_c->S_DATA, $_c->S_BUF));
+my $_buf_size = $_c->S_BUF;
+$_send->(sprintf("_SETS %d %d", $_c->S_DATA, $_buf_size));
 # if understood, server sends '_ACK'
 $_r = $_recv->();
 is($_r, $_c->A_ACK, "Got _ACK from server");
 
-# instruct server to begin pumping out random data of given length
-$_send->($_c->Q_DL);
-# read that junk, but check that sizes match
-my $_total = 0;
-my $_start = $_l->t_start;
-while ($_total < $_c->S_DATA) {
-   $_total += read($_sock, $_r, $_c->S_BUF);
+my $_testloops = 40;
+for (0 .. $_testloops) {
+   # instruct server to begin pumping out random data of given length
+   $_send->($_c->Q_DL);
+   # read that junk, but check that sizes match
+   my $_total = 0;
+   my $_start = $_l->t_start;
+   while ($_total < $_c->S_DATA) {
+      $_total += read($_sock, $_r, $_buf_size);
+   }
+   my $_elapsed = $_l->t_stop($_start);
+   is($_total, $_c->S_DATA, "Read correct number of bytes back");
+   $_send->($_c->q('q', 'log', $_total, $_elapsed, "from testcase"));
 }
-my $_elapsed = $_l->t_stop($_start);
-is($_total, $_c->S_DATA, "Read correct number of bytes back");
 
-
-$_send->($_c->q(undef, 'q', 'log', $_total, $_elapsed, "from testcase"));
 $_send->($_c->Q_QUIT);
 
 waitpid($kidpid, 0);
 
-done_testing(11);
+done_testing(11 + $_testloops);
