@@ -1,6 +1,12 @@
 #!/usr/bin/env perl
-# Licence: GPL
-# Odd, 2013-07-18 19:48:20
+# Licence     : GPL
+# Author      : Odd Eivind Ebbesen <odd@oddware.net>
+# Date        : 2013-07-18 19:48:20
+#
+# Description :
+#   Argument parsing frontend script for initiating an instance 
+#   of BWMonitor::Client and run requested tests against a BWMonitor::Server.
+#
 
 use v5.10;
 use strict;
@@ -9,7 +15,6 @@ use warnings;
 use Getopt::Long;
 
 use lib '../lib';
-
 use BWMonitor::Cmd;
 use BWMonitor::Client;
 use BWMonitor::Logger;
@@ -47,7 +52,6 @@ my $log = sub {
 
 local $SIG{INT} = sub {
    $_abort = 1;
-   #print(BWMonitor::Cmd::NL);
    $SIG{INT} = 'IGNORE';
 };
 
@@ -64,8 +68,7 @@ $log->(
    $_opts->{host}, $_opts->{size_data}, $_opts->{interval}
 );
 
-my $welcome_msg = $_c->getline;
-$log->("\n[Server Banner]\n$welcome_msg\n\n");
+$log->("\n[Server Banner]\n%s\n\n", $_c->getline);
 $log->("[Results]\n");
 
 my $run_test = sub {

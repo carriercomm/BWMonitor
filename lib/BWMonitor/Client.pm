@@ -1,5 +1,10 @@
-# Licence: GPL
-# Odd, 2013-07-18 17:11:38
+# Licence     : GPL
+# Author      : Odd Eivind Ebbesen <odd@oddware.net>
+# Date        : 2013-07-18 17:11:38
+#
+# Description :
+#   Common client methods
+#
 
 package BWMonitor::Client;
 
@@ -9,18 +14,18 @@ use warnings;
 
 use Carp;
 use IO::Socket::INET;
-#use IO::Handle;
 use BWMonitor::Cmd;
 use BWMonitor::Logger;
 use BWMonitor::Rnd;
 
+our $VERSION = '2013-07-19';
 
 ### OO subs
 
 sub new {
    my $class = shift;
    my %args  = @_;
-   my %cfg = (
+   my %cfg   = (
       host    => 'localhost',
       port    => BWMonitor::Cmd::PORT,
       proto   => BWMonitor::Cmd::PROTO,
@@ -62,8 +67,6 @@ sub connect {
          Timeout  => $self->{timeout},
       ) or carp($!);
    }
-   #$self->{sock}->autoflush(1);
-   #binmode($self->{sock});
    return $self->sock;
 }
 
@@ -81,8 +84,7 @@ sub getline {
    my $self = shift;
    return unless ($self->connected);
    my $sock = $self->sock;
-   chomp(my $ret  = <$sock>);
-   #$ret =~ s/\r?\n//;
+   chomp(my $ret = <$sock>);
    return $ret;
 }
 
@@ -96,7 +98,7 @@ sub send {
    elsif (scalar(@_) == 1) {
       print($sock shift(@_));
    }
-   print($sock $self->_cmd->NL);   # flush FH
+   print($sock $self->_cmd->NL);    # flush FH
    return $self;
 }
 
@@ -107,17 +109,16 @@ sub download {
    my $size_data = shift || $cmd->S_DATA;
    my $size_buf  = shift || $cmd->S_BUF;
 
-   #return unless ($sock);
-   croak("Socket not defined") unless($sock);
+   croak("Socket not defined") unless ($sock);
 
    my $ret = $self->send($cmd->q('q', 'set_sizes', $size_data, $size_buf))->getline;
-   my $rlen = length($ret);
-   my $alen = length($cmd->A_ACK);
-   #my $ret = $self->getline;
-   #print("[Client]: got reply: $ret\n");
-   # return unless ($ret eq $cmd->A_ACK);
+
+   my $rlen   = length($ret);
+   my $alen   = length($cmd->A_ACK);
    my $errmsg = sprintf("Ret: [%s] (length: %d), Expected: [%s] (length: %d)", $ret, $rlen, $cmd->A_ACK, $alen);
-   die($errmsg) unless($ret eq $cmd->A_ACK);
+
+   croak($errmsg) unless ($ret eq $cmd->A_ACK);
+
    $self->send($cmd->Q_DL);
 
    my $read    = 0;
@@ -133,6 +134,8 @@ sub download {
 }
 
 sub upload {
+   # TODO:
+   # Create the framework to reverse the whole thing
    my $self = shift;
 }
 

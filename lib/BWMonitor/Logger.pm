@@ -1,6 +1,10 @@
-# Licence: GPL
-# Author: Odd Eivind Ebbesen <odd@oddware.net>
-# Date: 2013-07-16 15:19:56
+# Licence     : GPL
+# Author      : Odd Eivind Ebbesen <odd@oddware.net>
+# Date        : 2013-07-16 15:19:56
+#
+# Description :
+#   Some logging related utility methods
+#
 
 package BWMonitor::Logger;
 
@@ -11,6 +15,7 @@ use warnings;
 use Time::HiRes;
 #use Carp;
 
+our $VERSION = '2013-07-19';
 
 sub new {
    state $self;
@@ -35,17 +40,17 @@ sub to_mbit {
    return (($bytes * 8) / $seconds) / 1000 / 1000;
 }
 
-sub log_transfer {
-   my $self    = shift;
-   my $bytes   = shift;
-   my $seconds = shift;
-   my $peer    = shift;
-
-   my $mbps = $self->to_mbit($bytes, $seconds);
-
-   # gotta do something else here later
-   printf("%s->%s: %d Mbps to %s\n", __PACKAGE__, 'log_transfer()', $mbps, $peer);
-}
+#sub log_transfer {
+#   my $self    = shift;
+#   my $bytes   = shift;
+#   my $seconds = shift;
+#   my $peer    = shift;
+#
+#   my $mbps = $self->to_mbit($bytes, $seconds);
+#
+#   # gotta do something else here later
+#   printf("%s->%s: %d Mbps to %s\n", __PACKAGE__, 'log_transfer()', $mbps, $peer);
+#}
 
 sub log_time {
    my $self = shift;

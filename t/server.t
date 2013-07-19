@@ -1,4 +1,11 @@
 #!/usr/bin/env perl
+# Licence     : GPL
+# Author      : Odd Eivind Ebbesen <odd@oddware.net>
+# Date        : 2013-07-19 18:33:58
+#
+# Description :
+#
+
 
 use v5.10;
 use strict;
@@ -6,7 +13,6 @@ use warnings;
 
 use Test::More;
 use IO::Socket::INET;
-#use IO::Handle;
 use Carp;
 
 use BWMonitor::Server;

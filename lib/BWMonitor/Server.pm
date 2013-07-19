@@ -1,6 +1,10 @@
-# Licence: GPL
-# Starting over... :(
-# Odd, 2013-07-16 11:16:18
+# Licence     : GPL
+# Author      : Odd Eivind Ebbesen <odd@oddware.net>
+# Date        : 2013-07-16 11:16:18
+#
+# Description :
+#   Server for downloading/uploading/logging measurements.
+#
 
 package BWMonitor::Server;
 
@@ -12,10 +16,11 @@ use base qw(Net::Server::Fork);
 use Carp;
 use Data::Dumper;
 use BWMonitor::Cmd;
+use BWMonitor::Graphite;
 use BWMonitor::Logger;
 use BWMonitor::Rnd;
-use BWMonitor::Graphite;
 
+our $VERSION = '2013-07-19';
 
 ### Non OO subs
 
@@ -75,7 +80,6 @@ sub process_request {
          s/^(.*?)\r?\n$//;
          next unless ($1);
          my $input = $1;
-         #printf("You said: $input%s", $$pcmd->NL);
        SWITCH: {
             # CMD from client to close all connections and shut down
             if ($input =~ $$pcmd->Q_QUIT) {
@@ -95,7 +99,6 @@ sub process_request {
                $size_dl  = $1;
                $size_buf = $2;
                print($$pcmd->A_ACK . $$pcmd->NL);
-               #print("  _ACK\n");
                last SWITCH;
             }
             # CMD from client to start DL
@@ -107,7 +110,11 @@ sub process_request {
                   print($buf);
                   $total += length($buf);
                }
+               
+               # Important to do this one after the client is done 
+               # downloading, to not slow down measurements
                BWMonitor::Rnd::fillup;
+
                last SWITCH;
             }
             # CMD from client to log results
@@ -132,8 +139,8 @@ sub process_request {
                $self->log(4, "$msg: $path $speed");
                last SWITCH;
             }
-            # ...
-            # for debugging only, to be removed
+            #
+            # for debugging only, to be removed when stable or something...
             if ($input =~ /_dump/) {
                printf("%s%s", Dumper($self), $$pcmd->NL);
                #$self->get_client_info;

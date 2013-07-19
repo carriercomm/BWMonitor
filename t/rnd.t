@@ -1,4 +1,11 @@
 #!/usr/bin/env perl
+# Licence     : GPL
+# Author      : Odd Eivind Ebbesen <odd@oddware.net>
+# Date        : 2013-07-19 18:34:33
+#
+# Description :
+#
+
 
 use v5.10;
 use strict;

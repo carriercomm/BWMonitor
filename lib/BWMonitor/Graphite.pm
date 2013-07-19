@@ -1,6 +1,10 @@
-# Licence: GPL
-# Author: Odd Eivind Ebbesen <odd@oddware.net>
-# Date: 2013-04-23 08:54:54
+# Licence     : GPL
+# Author      : Odd Eivind Ebbesen <odd@oddware.net>
+# Date        : 2013-07-19 18:03:20
+#
+# Description :
+#   Methods to send results to a Graphite server for statistics.
+#
 
 package BWMonitor::Graphite;
 
@@ -66,10 +70,6 @@ sub oneshot {
    $self->send(@_);
    $self->disconnect;
 }
-
-#sub close {
-#   return shift->disconnect;
-#}
 
 sub DESTROY {
    shift->disconnect;

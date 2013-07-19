@@ -1,6 +1,12 @@
 #!/usr/bin/env perl
-# Licence: GPL
-# Odd, 2013-07-18 19:17:23
+# Licence     : GPL
+# Author      : Odd Eivind Ebbesen <odd@oddware.net>
+# Date        : 2013-07-18 19:17:23
+#
+# Description :
+#   Argument parsing frontend script for starting an instance 
+#   of BWMonitor::Server.
+#
 
 use v5.10;
 use strict;
@@ -9,7 +15,6 @@ use warnings;
 use Getopt::Long;
 
 use lib '../lib';
-
 use BWMonitor::Cmd;
 use BWMonitor::Server;
 
