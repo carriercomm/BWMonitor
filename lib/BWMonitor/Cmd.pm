@@ -17,17 +17,21 @@ our $VERSION = '2013-07-16';
 
 use constant {
    TIMEOUT => 5,
-   PORT    => 10443,        # TCP port to listen on
+   PORT    => 3389,        # TCP port to listen on
    S_BUF   => 16384,        # buffer size, in bytes
-   S_DATA  => 1_048_576,    # data/sample size, in bytes (1MB)
+   S_DATA  => 1_048_576 * 10,    # data/sample size, in bytes (10 MB)
    NL      => "\n",
    PROTO   => 'tcp',
    XXX     => undef,
+   GRAPHITE_HOST => '10.57.78.24', #'10.58.83.252',
+   GRAPHITE_PORT => 2003,
+   GRAPHITE_PROTO => 'tcp',
+   GRAPHITE_RES_PREFIX => 'bwmonitor.results.',
 };
 
 use constant {
    Q_SET_SIZES => qr/^_SETS\s+(\d+)\s+(\d+)/,                # KW, sample size, buffer size
-   Q_LOG       => qr/^_LOG\s+(\d+)\s+(\d*\.?\d+)\s+(.*)/,    # KW, bytes, seconds, free text
+   Q_LOG       => qr/^_LOG\s+(\d+)\s+(\d*\.?\d+)\s+([\d\._]+)\s+(.*)/,    # KW, bytes, seconds, host, free text
    Q_DL        => '_DOWNLOAD',
    Q_QUIT      => '_QUIT',
    Q_CLOSE     => '_CLOSE',
@@ -47,9 +51,11 @@ my $_disp_tbl = {
       log => sub {
          my $bytes   = shift;
          my $seconds = shift;
-         my $msg     = shift;
-         return sprintf("_LOG %d %f %s", $bytes, $seconds, $msg);
-      },
+         my $host    = shift;
+         my $msg     = shift || '';
+         $host =~ s/\./_/g;
+         return sprintf("_LOG %d %f %s %s", $bytes, $seconds, $host, $msg);
+        },
    },
    test => {
       lvl1 => {

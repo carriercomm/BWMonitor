@@ -4,30 +4,22 @@
 
 package BWMonitor::Server;
 
+use v5.10;
 use strict;
 use warnings;
 use base qw(Net::Server::Fork);
 
 use Carp;
+use Data::Dumper;
 use BWMonitor::Cmd;
 use BWMonitor::Logger;
 use BWMonitor::Rnd;
+use BWMonitor::Graphite;
 
 
 ### Non OO subs
 
-# Move responsibility to Rnd module!
-sub genrnd {
-   # Because of the usage of pack(), unsigned long etc, the data returned will be $size X 4
-   # E.g. Size of 4096 will return a 16348 bytes long string.
-   my $size = shift || 4096;
-   #return pack('L*', map(rand(~0), 1 .. $size));
-   return "." x ($size * 4); # waaaay faster, for when testing other parts of the code
-}
-
 sub log_time {
-   #my ($sec, $min, $hour, $day, $mon, $year) = localtime;
-   #return sprintf "%04d-%02d-%02d_%02d:%02d:%02d", $year + 1900, $mon + 1, $day, $hour, $min, $sec;
    return BWMonitor::Logger->log_time;
 }
 
@@ -37,7 +29,11 @@ sub new {
    my $class = shift;
    my %args  = @_;
    my %cfg = (
-      pcmd => BWMonitor::Cmd->new,
+      pcmd            => BWMonitor::Cmd->new,
+      enable_graphite => undef,
+      graphite_host   => BWMonitor::Cmd::GRAPHITE_HOST,
+      graphite_port   => BWMonitor::Cmd::GRAPHITE_PORT,
+      graphite_proto  => BWMonitor::Cmd::GRAPHITE_PROTO,
    );
    # merge args with cfg
    @cfg{ keys(%args) } = values(%args);
@@ -47,9 +43,9 @@ sub new {
 
 sub post_configure_hook {
    my $self = shift;
-   $self->log(4, "Generating random data file \"%s\", please wait...", BWMonitor::Rnd::RND_FILE);
-   #init_rnd_file;
-   $self->log(4, "Done generating random data file");
+   $self->log(4, "Please wait while filling up FIFO RND buffers...");
+   BWMonitor::Rnd::init;
+   $self->log(4, "Buffers filled!");
 }
 
 sub process_request {
@@ -59,6 +55,15 @@ sub process_request {
 
    my $size_dl  = $$pcmd->S_DATA;        # may be changed by client
    my $size_buf = $$pcmd->S_BUF;         # may be changed by client
+   my $g;
+   if ($self->{bwm}{enable_graphite}) {
+      $g = BWMonitor::Graphite->new(
+         graphite_host  => $self->{bwm}{graphite_host},
+         graphite_port  => $self->{bwm}{graphite_port},
+         graphite_proto => $self->{bwm}{graphite_proto}
+      );
+      $g->connect and $self->log(4, "Connected to Graphite server!");
+   }
 
    printf("Welcome to %s (%s)%s", ref($self), $$, $$pcmd->NL);
 
@@ -86,10 +91,11 @@ sub process_request {
             }
             # CMD from client to set DL size and buffer size
             if ($input =~ $$pcmd->Q_SET_SIZES) {
-               $self->log(4, "Client sets sizes: $1 $2");
+               $self->log(4, "Client sets sizes (in bytes), total: $1 buf: $2");
                $size_dl  = $1;
                $size_buf = $2;
-               print($$pcmd->A_ACK, $$pcmd->NL);
+               print($$pcmd->A_ACK . $$pcmd->NL);
+               #print("  _ACK\n");
                last SWITCH;
             }
             # CMD from client to start DL
@@ -97,28 +103,40 @@ sub process_request {
                $self->log(4, "Client requested download");
                my $total = 0;
                while ($total < $size_dl) {
-                  #my $buf = '.' x $size_buf;
-                  my $buf = genrnd($size_buf);
+                  my $buf = BWMonitor::Rnd::get;
                   print($buf);
                   $total += length($buf);
                }
-               #print($$pcmd->NL);
+               BWMonitor::Rnd::fillup;
                last SWITCH;
             }
             # CMD from client to log results
             if ($input =~ $$pcmd->Q_LOG) {
-               my $bytes   = $1;
-               my $seconds = $2;
-               my $msg     = $3;
-               my $speed   = BWMonitor::Logger->to_mbit($bytes, $seconds);
-               $self->log(4, "Client read $bytes bytes in $seconds seconds - speed: $speed Mbps ( $msg )");
+               my $bytes    = $1;
+               my $seconds  = $2;
+               my $peerhost = $3;
+               my $msg      = $4;
+               my $speed    = BWMonitor::Logger->to_mbit($bytes, $seconds);
+               (my $listen_addr = $self->{server}{sockaddr}) =~ s/\./_/g;
+               (my $nat_addr    = $self->{server}{peeraddr}) =~ s/\./_/g;
+               my $path = sprintf(
+                  "%sserver_%s.nat_%s.client_%s",
+                  BWMonitor::Cmd::GRAPHITE_RES_PREFIX,
+                  $listen_addr, $nat_addr, $peerhost
+               );
+
+               if ($g) {
+                  my (undef, $sent) = $g->send($path, $speed);
+                  $self->log(4, "Sent $sent bytes to Graphite server");
+               }
+               $self->log(4, "$msg: $path $speed");
                last SWITCH;
             }
             # ...
             # for debugging only, to be removed
-            if ($input =~ /^_dump/) {
+            if ($input =~ /_dump/) {
                printf("%s%s", Dumper($self), $$pcmd->NL);
-               $self->get_client_info;
+               #$self->get_client_info;
                last SWITCH;
             }
          }
@@ -132,6 +150,11 @@ sub process_request {
    }
 }
 
+
+sub DESTROY {
+   my $self = shift;
+   BWMonitor::Rnd::cleanup;
+}
 
 1;
 __END__
