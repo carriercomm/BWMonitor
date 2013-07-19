@@ -18,6 +18,8 @@ use lib '../lib';
 use BWMonitor::Cmd;
 use BWMonitor::Server;
 
+our $VERSION = BWMonitor::Cmd::VERSION;
+
 my $_opts = {
    port           => BWMonitor::Cmd::PORT,
    graphite_host  => BWMonitor::Cmd::GRAPHITE_HOST,

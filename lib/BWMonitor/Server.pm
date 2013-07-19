@@ -20,7 +20,7 @@ use BWMonitor::Graphite;
 use BWMonitor::Logger;
 use BWMonitor::Rnd;
 
-our $VERSION = '2013-07-19';
+our $VERSION = BWMonitor::Cmd::VERSION;
 
 ### Non OO subs
 
@@ -48,7 +48,12 @@ sub new {
 
 sub post_configure_hook {
    my $self = shift;
-   $self->log(4, "Please wait while filling up FIFO RND buffers...");
+   $self->log(
+      4, 
+      "Please wait while filling up %d buffers of %d random bytes each...", 
+      BWMonitor::Rnd::CHUNK_NUM, 
+      BWMonitor::Rnd::CHUNK_SIZE
+   );
    BWMonitor::Rnd::init;
    $self->log(4, "Buffers filled!");
 }
@@ -70,7 +75,7 @@ sub process_request {
       $g->connect and $self->log(4, "Connected to Graphite server!");
    }
 
-   # Maybe I should drop this, but it's so cozy...
+   # Maybe I should drop this, but it's so cozy, like the "hello world" websites of the early 00's...
    printf("Welcome to %s (%s)%s", ref($self), $$, $$pcmd->NL);
 
    my $prev_alarm = alarm($timeout);
@@ -107,14 +112,15 @@ sub process_request {
                $self->log(4, "Client requested download");
                my $total = 0;
                while ($total < $size_dl) {
-                  my $buf = BWMonitor::Rnd::get;
+                  my $buf = BWMonitor::Rnd::get;    # will resort to direct read if buffers depleated
                   print($buf);
                   $total += length($buf);
                }
                
                # Important to do this one after the client is done 
                # downloading, to not slow down measurements
-               BWMonitor::Rnd::fillup;
+               my $filled_buffers = BWMonitor::Rnd::fillup;
+               $self->log(4, "Filled $filled_buffers buffers back up with randomness");
 
                last SWITCH;
             }
@@ -128,7 +134,7 @@ sub process_request {
                (my $listen_addr = $self->{server}{sockaddr}) =~ s/\./_/g;
                (my $nat_addr    = $self->{server}{peeraddr}) =~ s/\./_/g;
                my $path = sprintf(
-                  "%sserver_%s.nat_%s.client_%s",
+                  "%sserver_%s.nat_%s.client_%s.download",
                   BWMonitor::Cmd::GRAPHITE_RES_PREFIX,
                   $listen_addr, $nat_addr, $peerhost
                );

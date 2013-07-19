@@ -14,8 +14,9 @@ use warnings;
 
 use Time::HiRes;
 #use Carp;
+use BWMonitor::Cmd;
 
-our $VERSION = '2013-07-19';
+our $VERSION = BWMonitor::Cmd::VERSION;
 
 sub new {
    state $self;

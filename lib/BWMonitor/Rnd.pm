@@ -18,7 +18,7 @@ use warnings;
 use constant CHUNK_SIZE    => 16384;
 use constant CHUNK_NUM     => 4096; 
 
-our $VERSION = '2013-07-19';
+our $VERSION = BWMonitor::Cmd::VERSION;
 
 my @_queue;
 my $_urnd_fh;
@@ -60,9 +60,12 @@ sub init {
 sub fillup {
    # Almost like init, but fills only as many slots as needed to get the size 
    # back up to CHUNK_NUM
+   my $slots = 0;
    for (scalar(@_queue) .. CHUNK_NUM - 1) {
       push(@_queue, genrnd);
+      ++$slots;
    }
+   return $slots;
 }
 
 sub rotate {

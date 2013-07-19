@@ -19,6 +19,8 @@ use BWMonitor::Cmd;
 use BWMonitor::Client;
 use BWMonitor::Logger;
 
+our $VERSION = BWMonitor::Cmd::VERSION;
+
 my $_abort = 0;
 my @_results;
 my $_opts = {

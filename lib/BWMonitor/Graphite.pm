@@ -15,7 +15,7 @@ use Carp;
 use IO::Socket::INET;
 use BWMonitor::Cmd;
 
-our $VERSION = '2013-07-19';
+our $VERSION = BWMonitor::Cmd::VERSION;
 
 sub new {
    my $class = shift;
