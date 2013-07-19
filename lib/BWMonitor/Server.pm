@@ -70,6 +70,7 @@ sub process_request {
       $g->connect and $self->log(4, "Connected to Graphite server!");
    }
 
+   # Maybe I should drop this, but it's so cozy...
    printf("Welcome to %s (%s)%s", ref($self), $$, $$pcmd->NL);
 
    my $prev_alarm = alarm($timeout);

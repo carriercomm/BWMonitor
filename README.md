@@ -15,22 +15,26 @@ BWMonitor is released under GPL.
 
 ## Technical
 
-The server listens on a TCP socket, running continously, acting as
-a command channel. Clients then connect to this and send predefined
-commands with parameters. If the requested operation is reading/writing
-a certain amount of data, the server replies with a status and parameters
-for where to connect via UDP. The client then opens a new connection via
-UDP, kicks off one byte over the wire to the server (just to make the
-server aware of the connection, as UDP is stateless), sets a timestamp,
-then starts to read until the requested data size is read, and sets
-the end timestamp. The data is discarded immediately, as the purpose
-on this channel is _only_ to measure the speed. The server, in turn,
-just pours out data directly to the UDP socket read from `/dev/urandom`
-(or any other open filehandle given - this is just the original thought)
-until the specified data size is transferred.  The client may then send
-the results of it's test back to the server via the TCP control channel
-for logging purposes, and then either disconnect, or request some other
-operation (just to not exclude possible future additional features).
+The server listens on a TCP socket, running in the background as a
+daemon. When a client connects, it forks off a new process to handle that
+session, while itself returning to listening for more new clients. The
+forked off process for each connection will scan input for defined
+commands. According to the command given, it will then set parameters,
+start a download measurement, log the results, close or quit, depending
+on it's input.
+
+To ensure sufficient efficiency, the server, when it starts up, will
+initialize BWMonitor::Rnd, which in turn will fill up its configured size
+buffers with random data. It's left up to the consumer of BWMonitor::Rnd
+to make sure to refill the random data buffers, or speed will slow down
+when they're empty, as the data will then be read for each request,
+instead of just being pulled from RAM.
+
+Both commands and random data are pushed through the same TCP
+connection. Earlier versions had a TCP channel for commands and a separate
+UDP channel for measuring bandwidth. But as the real life usage pattern
+for this application is anyways for TCP, the overhead of TCP is not
+worth the overhead of the code for an extra UDP channel.
 
 ### Platform
 
@@ -38,11 +42,10 @@ operation (just to not exclude possible future additional features).
 
 ## Summary
 
-Basically, just a simplified rip-off of the FTP protocol, trimmed down
-for a specific need, but hopefully extensible for other purposes.
+A bandwidth measurement tool. Client/server model. Alternative to iperf.
 
 ## Author
 
-Odd Eivind Ebbesen <oddebb@gmail.com>, 2013-03-13 18:31:06
+Odd Eivind Ebbesen <odd@oddware.net>, 2013-07-19 19:25:56
 
 
