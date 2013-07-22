@@ -19,7 +19,7 @@ use BWMonitor::Cmd;
 use BWMonitor::Client;
 use BWMonitor::Logger;
 
-our $VERSION = BWMonitor::Cmd::VERSION;
+our $VERSION = $BWMonitor::Cmd::VERSION;
 
 my $_abort = 0;
 my @_results;
@@ -52,6 +52,7 @@ my $log = sub {
    }
 };
 
+# Trap CTRL-C
 local $SIG{INT} = sub {
    $_abort = 1;
    $SIG{INT} = 'IGNORE';

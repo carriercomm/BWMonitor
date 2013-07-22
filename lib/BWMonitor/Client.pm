@@ -18,7 +18,7 @@ use BWMonitor::Cmd;
 use BWMonitor::Logger;
 use BWMonitor::Rnd;
 
-our $VERSION = BWMonitor::Cmd::VERSION;
+our $VERSION = $BWMonitor::Cmd::VERSION;
 
 ### OO subs
 

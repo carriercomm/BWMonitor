@@ -18,7 +18,7 @@ use warnings;
 use constant CHUNK_SIZE    => 16384;
 use constant CHUNK_NUM     => 4096; 
 
-our $VERSION = BWMonitor::Cmd::VERSION;
+our $VERSION = $BWMonitor::Cmd::VERSION;
 
 my @_queue;
 my $_urnd_fh;

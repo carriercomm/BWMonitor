@@ -20,7 +20,7 @@ use BWMonitor::Graphite;
 use BWMonitor::Logger;
 use BWMonitor::Rnd;
 
-our $VERSION = BWMonitor::Cmd::VERSION;
+our $VERSION = $BWMonitor::Cmd::VERSION;
 
 ### Non OO subs
 

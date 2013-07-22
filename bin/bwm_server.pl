@@ -18,7 +18,7 @@ use lib '../lib';
 use BWMonitor::Cmd;
 use BWMonitor::Server;
 
-our $VERSION = BWMonitor::Cmd::VERSION;
+our $VERSION = $BWMonitor::Cmd::VERSION;
 
 my $_opts = {
    port           => BWMonitor::Cmd::PORT,

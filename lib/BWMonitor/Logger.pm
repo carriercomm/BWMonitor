@@ -16,7 +16,7 @@ use Time::HiRes;
 #use Carp;
 use BWMonitor::Cmd;
 
-our $VERSION = BWMonitor::Cmd::VERSION;
+our $VERSION = $BWMonitor::Cmd::VERSION;
 
 sub new {
    state $self;
