@@ -13,8 +13,9 @@ use strict;
 use warnings;
 
 use Getopt::Long;
+use FindBin;
 
-use lib '../lib';
+use lib "$FindBin::Bin/../lib";
 use BWMonitor::Cmd;
 use BWMonitor::Client;
 use BWMonitor::Logger;
@@ -32,6 +33,40 @@ my $_opts = {
    interval  => 0,
 };
 
+sub usage {
+   print <<"EOM";
+
+Usage: $0 [ options ]
+
+Options:
+   --host       Hostname/IP for the BWMonitor::Server instance to connect to.
+                Default: $_opts->{host}  
+
+   --port       TCP port to connect to.
+                Default: $_opts->{port}
+
+   --loops      How many tests to run.
+                Default: $_opts->{loops}
+
+   --interval   How many seconds to wait between each loop.
+                Default: $_opts->{interval}
+
+   --infinite   If set, ignore the value of --loops and run until interrupted.
+
+   --data_size  How many bytes to download in each test.
+                Default: $_opts->{size_data} ( See Cmd.pm )
+
+   --buf_size   How big buffers to use, in bytes.
+                Default: $_opts->{size_buf} ( See Cmd.pm )
+
+   --quiet      Do not print anything.
+
+   --help       This message.
+
+EOM
+   1;
+}
+
 GetOptions(
    'host=s'      => \$_opts->{host},
    'port=i'      => \$_opts->{port},
@@ -42,8 +77,8 @@ GetOptions(
    'interval=i'  => \$_opts->{interval},
    #'verbose'     => \$_opts->{verbose},
    'quiet'       => \$_opts->{quiet},
-   'help|?'      => sub { print("Help...\n"); }
-) or die($!);
+   'help|?'      => sub { usage; exit 0; }
+) or usage and exit 1;
 
 my $log = sub {
    my $fmt = shift;
@@ -59,7 +94,8 @@ local $SIG{INT} = sub {
 };
 
 my $_c = BWMonitor::Client->new(host => $_opts->{host}, port => $_opts->{port});
-$_c->connect or die($!);
+$_c->connect
+  or die(sprintf("Unable to connect to BWMonitor::Server instance at %s:%d\n", $_opts->{host}, $_opts->{port}));
 
 
 $log->(
@@ -71,8 +107,7 @@ $log->(
    $_opts->{host}, $_opts->{size_data}, $_opts->{interval}
 );
 
-$log->("\n[Server Banner]\n%s\n\n", $_c->getline);
-$log->("[Results]\n");
+$log->("\n[Server Banner]\n%s\n\n[Results]\n", $_c->getline);
 
 my $run_test = sub {
    my $ret = $_c->download($_opts->{size_data}, $_opts->{size_buf});

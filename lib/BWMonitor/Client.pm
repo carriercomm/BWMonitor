@@ -137,6 +137,13 @@ sub upload {
    # TODO:
    # Create the framework to reverse the whole thing
    my $self = shift;
+   my $cmd       = $self->_cmd;
+   my $sock      = $self->sock;
+   my $size_data = shift || $cmd->S_DATA;
+   my $size_buf  = shift || $cmd->S_BUF;
+
+   croak("Socket not defined") unless ($sock);
+   my $ret = $self->send($cmd->q('q', 'set_sizes', $size_data, $size_buf))->getline;
 }
 
 1;

@@ -14,7 +14,7 @@ use warnings;
 
 use Carp;
 
-our $VERSION = '2013-07-19';
+our $VERSION = '2013-07-23';
 
 use constant {
    TIMEOUT             => 5,
@@ -42,6 +42,7 @@ use constant {
 
 ###
 
+# Dispatcher table
 my $_disp_tbl = {
    q => {
       set_sizes => sub {
@@ -72,7 +73,7 @@ sub _q {
    while (my $k = shift(@_)) {
       my $type = ref($href->{$k});
       if ($type eq 'HASH') {
-         return $self->_q($href->{$k}, @_);
+         return $self->_q($href->{$k}, @_); # recurse
       }
       elsif ($type eq 'CODE') {
          return $href->{$k}->(@_);
