@@ -4,7 +4,7 @@
 # Date        : 2013-07-18 19:48:20
 #
 # Description :
-#   Argument parsing frontend script for initiating an instance 
+#   Argument parsing frontend script for initiating an instance
 #   of BWMonitor::Client and run requested tests against a BWMonitor::Server.
 #
 
@@ -20,12 +20,20 @@ use BWMonitor::Cmd;
 use BWMonitor::Client;
 use BWMonitor::Logger;
 
+# Directions (down/up/both)
+use constant D_BASE => 0x0001;
+use constant D_DOWN => D_BASE << 1;
+use constant D_UP   => D_BASE << 2;
+
 our $VERSION = $BWMonitor::Cmd::VERSION;
 
-my $_abort = 0;
-my @_results;
+my $_abort     = 0;
+my $_direction = D_BASE;
+my $_client;
+my @_results_up;
+my @_results_down;
 my $_opts = {
-   host      => 'localhost',
+   host      => '127.0.0.1',
    port      => BWMonitor::Cmd::PORT,
    size_data => BWMonitor::Cmd::S_DATA,    # in bytes
    size_buf  => BWMonitor::Cmd::S_BUF,     # in bytes
@@ -67,6 +75,13 @@ EOM
    1;
 }
 
+sub _log {
+   my $fmt = shift;
+   if (!$_opts->{quiet}) {
+      printf($fmt, @_);
+   }
+}
+
 GetOptions(
    'host=s'      => \$_opts->{host},
    'port=i'      => \$_opts->{port},
@@ -75,17 +90,82 @@ GetOptions(
    'infinite'    => \$_opts->{infinite},
    'loops=i'     => \$_opts->{loops},
    'interval=i'  => \$_opts->{interval},
-   #'verbose'     => \$_opts->{verbose},
    'quiet'       => \$_opts->{quiet},
+   'down'        => sub { $_direction |= D_DOWN },
+   'up'          => sub { $_direction |= D_UP },
    'help|?'      => sub { usage; exit 0; }
 ) or usage and exit 1;
 
-my $log = sub {
-   my $fmt = shift;
-   if (!$_opts->{quiet}) {
-      printf($fmt, @_);
+my $_run_test = sub {
+   if ($_direction & D_DOWN) {
+      my $ret = $_client->download($_opts->{size_data}, $_opts->{size_buf});
+      push(@_results_down, $ret);
+      $ret = sprintf("%.2f", $ret);
+      _log("%-25s : %9s Mbit/s <== %s\n", BWMonitor::Logger::log_time, $ret, $_opts->{host});
+      sleep($_opts->{interval});
+   }
+   if ($_direction & D_UP) {
+      unless (BWMonitor::Rnd::size > 0) {
+         #_log("Please wait while filling up RND buffers...\n");
+         BWMonitor::Rnd::init();
+         #_log("Buffers filled, ready.\n");
+      }
+      my $ret = $_client->upload($_opts->{size_data}, $_opts->{size_buf});
+      push(@_results_up, $ret);
+      $ret = sprintf("%.2f", $ret);
+      _log("%-25s : %9s Mbit/s ==> %s\n", BWMonitor::Logger::log_time, $ret, $_opts->{host});
+      #_log("Refilling RND buffers...\n");
+      #BWMonitor::Rnd::fillup;
+      sleep($_opts->{interval});
    }
 };
+
+my $_summary = sub {
+   my $total_up   = 0;
+   my $total_down = 0;
+   my $num_up     = scalar(@_results_up);
+   my $num_down   = scalar(@_results_down);
+
+   if ($num_up > 0) {
+      $total_up += $_ foreach (@_results_up);
+   }
+   if ($num_down > 0) {
+      $total_down += $_ foreach (@_results_down);
+   }
+
+   _log("[ Summary ]\n\n");
+
+   if ($num_up > 0) {
+      _log("Number of upload tests    : %d\n",          $num_up);
+      _log("Average upload speed      : %.2f Mbit/s\n", $total_up / $num_up);
+   }
+
+   if ($num_down > 0) {
+      _log("Number of download tests  : %d\n",          $num_down);
+      _log("Average download speed    : %.2f Mbit/s\n", $total_down / $num_down);
+   }
+};
+
+# Connect and run tests
+
+$_client = BWMonitor::Client->new(
+   host => $_opts->{host},
+   port => $_opts->{port}
+);
+
+$_client->connect or die("Unable to connect to BWMonitor::Server instance at $_opts->{host}:$_opts->{port}\n");
+
+_log("Date                      : %s\n",           BWMonitor::Logger::log_time);
+_log("Connected to server       : %s:%d\n",        $_opts->{host}, $_opts->{port});
+_log("Server greeting           : %s\n",           $_client->getline);
+_log("Numer of tests to run     : %s\n",           $_opts->{infinite} ? "infinite" : $_opts->{loops});
+_log("Download/upload data size : %d bytes\n",     $_opts->{size_data});
+_log("Pause between test        : %d seconds\n\n", $_opts->{interval});
+
+_log("Press CTRL-C to abort\n\n");
+_log("[ Results ]\n\n");
+
+#exit(0);
 
 # Trap CTRL-C
 local $SIG{INT} = sub {
@@ -93,54 +173,21 @@ local $SIG{INT} = sub {
    $SIG{INT} = 'IGNORE';
 };
 
-my $_c = BWMonitor::Client->new(host => $_opts->{host}, port => $_opts->{port});
-$_c->connect
-  or die(sprintf("Unable to connect to BWMonitor::Server instance at %s:%d\n", $_opts->{host}, $_opts->{port}));
-
-
-$log->(
-   "\n" .
-   "Server   : %s \n" .
-   "Total    : %d bytes\n" .
-   "Interval : %d seconds\n" .
-   "\n",
-   $_opts->{host}, $_opts->{size_data}, $_opts->{interval}
-);
-
-$log->("\n[Server Banner]\n%s\n\n[Results]\n", $_c->getline);
-
-my $run_test = sub {
-   my $ret = $_c->download($_opts->{size_data}, $_opts->{size_buf});
-   push(@_results, $ret);
-   $log->(
-      "%s : %.2f Mbit/s <= %s\n",
-      BWMonitor::Logger::log_time, $ret, $_opts->{host}
-   );
-   sleep($_opts->{interval});
-};
-
 if ($_opts->{infinite}) {
-   $run_test->() while (!$_abort);
+   $_run_test->() while (!$_abort);
 }
 else {
    for (1 .. $_opts->{loops}) {
       last if ($_abort);
-      $run_test->();
+      $_run_test->();
    }
 }
 
-$_c->disconnect;
+$_client->disconnect();
 
-my $avg;
-my $num_results = scalar(@_results);
-
-$avg += $_ foreach (@_results);
-$avg = $avg / $num_results;
-
-$log->("\n");
-$log->("Date          : %s\n", BWMonitor::Logger::log_time);
-$log->("Tests         : %d\n", $num_results);
-$log->("Average speed : %.2f Mbit/s\n", $avg);
-
+_log("\n");
+$_summary->();
+_log("\n");
 
 __END__
+

@@ -84,6 +84,10 @@ sub clear {
    @_queue = ();
 }
 
+sub size {
+   return scalar(@_queue);
+}
+
 sub cleanup {
    undef(@_queue);
    if ($_urnd_fh) {

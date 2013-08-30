@@ -34,6 +34,7 @@ use constant {
    Q_SET_SIZES => qr/^_SETS\s+(\d+)\s+(\d+)/,                             # KW, sample size, buffer size
    Q_LOG       => qr/^_LOG\s+(\d+)\s+(\d*\.?\d+)\s+([\d\._]+)\s+(.*)/,    # KW, bytes, seconds, host, free text
    Q_DL        => '_DOWNLOAD',
+   Q_UL        => '_UPLOAD',
    Q_QUIT      => '_QUIT',
    Q_CLOSE     => '_CLOSE',
    A_ACK       => '_ACK',
@@ -42,7 +43,6 @@ use constant {
 
 ###
 
-# Dispatcher table
 my $_disp_tbl = {
    q => {
       set_sizes => sub {
@@ -73,7 +73,7 @@ sub _q {
    while (my $k = shift(@_)) {
       my $type = ref($href->{$k});
       if ($type eq 'HASH') {
-         return $self->_q($href->{$k}, @_); # recurse
+         return $self->_q($href->{$k}, @_);
       }
       elsif ($type eq 'CODE') {
          return $href->{$k}->(@_);

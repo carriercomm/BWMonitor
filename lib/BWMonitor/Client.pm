@@ -102,48 +102,82 @@ sub send {
    return $self;
 }
 
-sub download {
+sub transfer {
    my $self      = shift;
-   my $cmd       = $self->_cmd;
+   my $direction = shift;           # Q_DL or Q_UL
+   my $cref      = shift;
+   my $size_data = shift;
+   my $size_buf  = shift;
    my $sock      = $self->sock;
-   my $size_data = shift || $cmd->S_DATA;
-   my $size_buf  = shift || $cmd->S_BUF;
+   my $cmd       = $self->_cmd;
 
    croak("Socket not defined") unless ($sock);
+   croak("not a subref") unless ($cref && ref($cref) && ref($cref) eq 'CODE');
 
    my $ret = $self->send($cmd->q('q', 'set_sizes', $size_data, $size_buf))->getline;
+   croak("Expected: " . $cmd->A_ACK . ", got: $ret") unless ($ret eq $cmd->A_ACK);
 
-   my $rlen   = length($ret);
-   my $alen   = length($cmd->A_ACK);
-   my $errmsg = sprintf("Ret: [%s] (length: %d), Expected: [%s] (length: %d)", $ret, $rlen, $cmd->A_ACK, $alen);
+   $self->send($direction);    # tells server up- or download
 
-   croak($errmsg) unless ($ret eq $cmd->A_ACK);
-
-   $self->send($cmd->Q_DL);
-
-   my $read    = 0;
-   my $buf     = '';
-   my $t_start = $self->_l->t_start;
-   while ($read < $size_data) {
-      $read += read($sock, $buf, $size_buf);
-   }
+   my $t_start   = $self->_l->t_start;
+   my $bytes     = $cref->($sock);  # callers code ref should read or write from the socket
    my $t_elapsed = $self->_l->t_stop($t_start);
-   $self->send($cmd->q('q', 'log', $read, $t_elapsed, $sock->sockhost, $self->_l->log_time));
 
-   return $self->_l->to_mbit($read, $t_elapsed);
+   # Can use the same function to log back, as when we send($direction), the state is stored
+   # in the server (pr client connection) until next call.
+   $self->send($cmd->q('q', 'log', $bytes, $t_elapsed, $sock->sockhost, $self->_l->log_time));
+
+   return $self->_l->to_mbit($bytes, $t_elapsed);
+}
+
+sub download {
+   my $self      = shift;
+   my $size_data = shift || $self->_cmd->S_DATA;
+   my $size_buf  = shift || $self->_cmd->S_BUF;
+   return $self->transfer(
+      $self->_cmd->Q_DL,
+      sub {
+         my $sock = shift;
+         my $buf  = '';
+         my $read = 0;
+         while ($read < $size_data) {
+            $read += read($sock, $buf, $size_buf);
+         }
+         return $read;
+      },
+      $size_data,
+      $size_buf
+   );
 }
 
 sub upload {
-   # TODO:
-   # Create the framework to reverse the whole thing
-   my $self = shift;
-   my $cmd       = $self->_cmd;
-   my $sock      = $self->sock;
-   my $size_data = shift || $cmd->S_DATA;
-   my $size_buf  = shift || $cmd->S_BUF;
+   # BWMonitor::Server will fill up RND buffers at startup, but this module
+   # does not, as it very well might be used just for measuring a download.
+   # Make sure to initialize and fill up BWMonitor::Rnd buffers from the 
+   # calling script if using this subroutine!
+   my $self      = shift;
+   my $size_data = shift || $self->_cmd->S_DATA;
+   my $size_buf  = shift || $self->_cmd->S_BUF;
 
-   croak("Socket not defined") unless ($sock);
-   my $ret = $self->send($cmd->q('q', 'set_sizes', $size_data, $size_buf))->getline;
+   # a little failsafe..
+   croak("You need to call BWMonitor::Rnd::init before calling BWMonitor::Client::upload() !")
+     unless (BWMonitor::Rnd::size() > 0);
+
+
+   return $self->transfer(
+      $self->_cmd->Q_UL,
+      sub {
+         my $sock    = shift;
+         my $written = 0;
+         while ($written < $size_data) {
+            my $buf = BWMonitor::Rnd::get;    # remember to fill up RND buffer some other place
+            $written += length($buf) if (print($sock $buf));
+         }
+         return $written;
+      },
+      $size_data,
+      $size_buf
+   );
 }
 
 1;

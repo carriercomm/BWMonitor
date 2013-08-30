@@ -65,6 +65,7 @@ sub process_request {
 
    my $size_dl  = $$pcmd->S_DATA;        # may be changed by client
    my $size_buf = $$pcmd->S_BUF;         # may be changed by client
+   my $direction;
    my $g;
    if ($self->{bwm}{enable_graphite}) {
       $g = BWMonitor::Graphite->new(
@@ -107,20 +108,35 @@ sub process_request {
                print($$pcmd->A_ACK . $$pcmd->NL);
                last SWITCH;
             }
-            # CMD from client to start DL
+            # CMD from client to start download
             if ($input =~ $$pcmd->Q_DL) {
                $self->log(4, "Client requested download");
+               $direction = $$pcmd->Q_DL;
                my $total = 0;
                while ($total < $size_dl) {
                   my $buf = BWMonitor::Rnd::get;    # will resort to direct read if buffers depleated
-                  print($buf);
-                  $total += length($buf);
+                  $total += length($buf) if (print($buf));
                }
                
                # Important to do this one after the client is done 
                # downloading, to not slow down measurements
                my $filled_buffers = BWMonitor::Rnd::fillup;
                $self->log(4, "Filled $filled_buffers buffers back up with randomness");
+
+               last SWITCH;
+            }
+            # CMD from client to start upload
+            if ($input =~ $$pcmd->Q_UL) {
+               $self->log(4, "Client requested upload");
+               $direction = $$pcmd->Q_UL;
+
+               my $read = 0;
+               my $buf  = '';
+               while ($read < $size_dl) {
+                  $read += read(STDIN, $buf, $size_buf);
+               }
+
+               $self->log(4, "Read $read bytes from client");
 
                last SWITCH;
             }
@@ -134,9 +150,9 @@ sub process_request {
                (my $listen_addr = $self->{server}{sockaddr}) =~ s/\./_/g;
                (my $nat_addr    = $self->{server}{peeraddr}) =~ s/\./_/g;
                my $path = sprintf(
-                  "%sserver_%s.nat_%s.client_%s.download",
+                  "%sserver_%s.nat_%s.client_%s.%s",
                   BWMonitor::Cmd::GRAPHITE_RES_PREFIX,
-                  $listen_addr, $nat_addr, $peerhost
+                  $listen_addr, $nat_addr, $peerhost, lc($direction)
                );
 
                if ($g) {
