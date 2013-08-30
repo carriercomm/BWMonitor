@@ -23,7 +23,7 @@ our $VERSION = $BWMonitor::Cmd::VERSION;
 my @_queue;
 my $_urnd_fh;
 
-#sub _genrnd {
+#sub genrnd {
 #   # Because of the usage of pack(), unsigned long etc, the data returned will be $size X 4
 #   # E.g. Size of 4096 will return a 16384 bytes long string.
 #   my $size = shift || 4096;
@@ -33,15 +33,22 @@ my $_urnd_fh;
 
 sub genrnd {
    my $size = shift || CHUNK_SIZE;
-   if (!$_urnd_fh) {
-      open($_urnd_fh, "<", '/dev/urandom') or die($!);
+   if ($^O eq 'linux') {
+      if (!$_urnd_fh) {
+         open($_urnd_fh, "<", '/dev/urandom') or die($!);
+      }
+      my $len = 0;
+      my $buf = '';
+      while ($len < $size) {
+         $len += sysread($_urnd_fh, $buf, $size);
+      }
+      return $buf;
    }
-   my $len = 0;
-   my $buf = '';
-   while ($len < $size) {
-      $len += sysread($_urnd_fh, $buf, $size);
+   else {
+      # This will work on Windows as well, if you want to run the client there
+      $size = $size / 4;
+      return pack('L*', map(rand(~0), 1 .. $size));
    }
-   return $buf;
 }
 
 sub init {

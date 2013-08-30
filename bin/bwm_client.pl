@@ -135,14 +135,13 @@ my $_summary = sub {
 
    _log("[ Summary ]\n\n");
 
-   if ($num_up > 0) {
-      _log("Number of upload tests    : %d\n",          $num_up);
-      _log("Average upload speed      : %.2f Mbit/s\n", $total_up / $num_up);
-   }
-
    if ($num_down > 0) {
       _log("Number of download tests  : %d\n",          $num_down);
       _log("Average download speed    : %.2f Mbit/s\n", $total_down / $num_down);
+   }
+   if ($num_up > 0) {
+      _log("Number of upload tests    : %d\n",          $num_up);
+      _log("Average upload speed      : %.2f Mbit/s\n", $total_up / $num_up);
    }
 };
 
