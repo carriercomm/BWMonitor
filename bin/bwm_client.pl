@@ -67,6 +67,10 @@ Options:
    --buf_size   How big buffers to use, in bytes.
                 Default: $_opts->{size_buf} ( See Cmd.pm )
 
+   --down       ...
+
+   --up         ...
+
    --quiet      Do not print anything.
 
    --help       This message.
@@ -81,6 +85,7 @@ sub _log {
       printf($fmt, @_);
    }
 }
+
 
 GetOptions(
    'host=s'      => \$_opts->{host},
@@ -144,6 +149,7 @@ my $_summary = sub {
       _log("Average upload speed      : %.2f Mbit/s\n", $total_up / $num_up);
    }
 };
+
 
 # Connect and run tests
 
