@@ -14,7 +14,7 @@ use warnings;
 
 use Carp;
 
-our $VERSION = '2013-07-23';
+our $VERSION = '2013-10-24';
 
 use constant {
    TIMEOUT             => 5,
