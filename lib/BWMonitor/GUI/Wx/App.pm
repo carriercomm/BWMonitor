@@ -11,13 +11,8 @@ use Modern::Perl;
 package BWMonitor::GUI::Wx::App;
 
 use Wx;
-#use FindBin;
-#use Data::Dumper;
 
-#use lib "$FindBin::Bin/../lib";
 use BWMonitor::Cmd;
-#use BWMonitor::Client;
-#use BWMonitor::Logger;
 use BWMonitor::GUI::Wx::MainFrame;
 
 use base qw(Wx::App);
@@ -28,7 +23,7 @@ my %_frm;
 
 sub OnInit {
    my $self = shift;
-   $_frm{$self} = BWMonitor::GUI::Wx::MainFrame->new('BWMon win title');
+   $_frm{$self} = BWMonitor::GUI::Wx::MainFrame->new;
    $_frm{$self}->Show;
    return 1;
 }

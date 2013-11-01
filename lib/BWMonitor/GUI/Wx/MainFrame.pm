@@ -11,10 +11,7 @@ use Modern::Perl;
 package BWMonitor::GUI::Wx::MainFrame;
 
 use Wx qw(:everything);
-#use FindBin;
-#use Data::Dumper;
 
-#use lib "$FindBin::Bin/../lib";
 use BWMonitor::Cmd;
 use BWMonitor::Client;
 #use BWMonitor::Logger;
@@ -60,12 +57,13 @@ sub new {
       repeat     => 1,
       interval   => 0,
    };
+   # same options for all spinners, so save typing by having an array
+   my @spn_opts = (wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS | wxALIGN_RIGHT);
 
-   my $p = $self->{g}{pnl_main} = Wx::Panel->new($self);
-
+   ### Containers
+   my $p = $self->{g}{pnl_main} = Wx::Panel->new($self, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL);
    $self->{g}{bs_frame} = Wx::BoxSizer->new(wxVERTICAL);
    $self->{g}{bs_panel} = Wx::BoxSizer->new(wxVERTICAL);
-
    $self->{g}{sbs_conn} = Wx::StaticBoxSizer->new(Wx::StaticBox->new($p, wxID_ANY, $_str{sb_conn}), wxHORIZONTAL);
    $self->{g}{sbs_data} = Wx::StaticBoxSizer->new(Wx::StaticBox->new($p, wxID_ANY, $_str{sb_data}), wxHORIZONTAL);
    $self->{g}{sbs_dir}  = Wx::StaticBoxSizer->new(Wx::StaticBox->new($p, wxID_ANY, $_str{sb_dir}),  wxHORIZONTAL);
@@ -73,51 +71,37 @@ sub new {
    $self->{g}{sbs_out}  = Wx::StaticBoxSizer->new(Wx::StaticBox->new($p, wxID_ANY, $_str{sb_out}),  wxHORIZONTAL);
    $self->{g}{sbs_exec} = Wx::StaticBoxSizer->new(Wx::StaticBox->new($p, wxID_ANY, $_str{sb_exec}), wxHORIZONTAL);
 
-   $self->{g}{lbl_host}       = Wx::StaticText->new($p, wxID_ANY, $_str{lbl_host});
-   $self->{g}{lbl_port}       = Wx::StaticText->new($p, wxID_ANY, $_str{lbl_port});
-   $self->{g}{lbl_data_size}  = Wx::StaticText->new($p, wxID_ANY, $_str{lbl_data_size});
-   $self->{g}{lbl_chunk_size} = Wx::StaticText->new($p, wxID_ANY, $_str{lbl_chunk_size});
-   $self->{g}{lbl_interval}   = Wx::StaticText->new($p, wxID_ANY, $_str{lbl_interval});
-
-   $self->{g}{chk_up}   = Wx::CheckBox->new($p, wxID_ANY, $_str{chk_up});
-   $self->{g}{chk_down} = Wx::CheckBox->new($p, wxID_ANY, $_str{chk_down});
-   $self->{g}{chk_inf}  = Wx::CheckBox->new($p, wxID_ANY, $_str{chk_inf});
-   $self->{g}{chk_rep}  = Wx::CheckBox->new($p, wxID_ANY, $_str{chk_rep});
-
-   $self->{g}{btn_start} = Wx::Button->new($p, wxID_OK,     $_str{btn_start});
-   $self->{g}{btn_stop}  = Wx::Button->new($p, wxID_CANCEL, $_str{btn_stop});
-   $self->{g}{btn_clear} = Wx::Button->new($p, wxID_ANY,    $_str{btn_clear});
-   $self->{g}{btn_exit}  = Wx::Button->new($p, wxID_ANY,    $_str{btn_exit});
-
-   # same options for all spinners, so save typing ny having an array
-   my @spn_opts = (wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS | wxALIGN_RIGHT);
-
-   $self->{g}{spn_port} = Wx::SpinCtrl->new(
-      $p, 
-      wxID_ANY, 
-      $self->{v}{port}, 
-      @spn_opts,
-      1,                # min
-      65535,            # max
-      #$self->{v}{port}, # initial
-   );
+   ### Controls / widgets
+   # Connection
+   $self->{g}{lbl_host} = Wx::StaticText->new($p, wxID_ANY, $_str{lbl_host});
+   $self->{g}{txt_host} = Wx::TextCtrl->new($p, wxID_ANY, $self->{v}{host});
+   $self->{g}{lbl_port} = Wx::StaticText->new($p, wxID_ANY, $_str{lbl_port});
+   $self->{g}{spn_port} = Wx::SpinCtrl->new($p, wxID_ANY, $self->{v}{port}, @spn_opts, 1, 65535);
+   # Data
+   $self->{g}{lbl_data_size} = Wx::StaticText->new($p, wxID_ANY, $_str{lbl_data_size});
    $self->{g}{spn_data_size} = Wx::SpinCtrl->new(
       $p,
       wxID_ANY,
       $self->{v}{data_size},
       @spn_opts,
-      $self->{v}{chunk_size},       # min value
-      $self->{v}{data_size} * 100,  # max value
-      #$self->{v}{data_size}         # initial value
+      $self->{v}{chunk_size},
+      $self->{v}{data_size} * 100
    );
+   $self->{g}{lbl_chunk_size} = Wx::StaticText->new($p, wxID_ANY, $_str{lbl_chunk_size});
    $self->{g}{spn_chunk_size} = Wx::SpinCtrl->new(
       $p,
       wxID_ANY,
       $self->{v}{chunk_size},
       @spn_opts,
-      1024,                     # min
-      $self->{v}{data_size},    # max
+      1024,
+      $self->{v}{data_size}
    );
+   # Directions
+   $self->{g}{chk_up}   = Wx::CheckBox->new($p, wxID_ANY, $_str{chk_up});
+   $self->{g}{chk_down} = Wx::CheckBox->new($p, wxID_ANY, $_str{chk_down});
+   # Options
+   $self->{g}{chk_inf}  = Wx::CheckBox->new($p, wxID_ANY, $_str{chk_inf});
+   $self->{g}{chk_rep}  = Wx::CheckBox->new($p, wxID_ANY, $_str{chk_rep});
    $self->{g}{spn_repeat} = Wx::SpinCtrl->new(
       $p,
       wxID_ANY,
@@ -126,6 +110,7 @@ sub new {
       1,
       65535,
    );
+   $self->{g}{lbl_interval}   = Wx::StaticText->new($p, wxID_ANY, $_str{lbl_interval});
    $self->{g}{spn_interval} = Wx::SpinCtrl->new(
       $p,
       wxID_ANY,
@@ -134,15 +119,19 @@ sub new {
       0,
       86400, # 24 hours in seconds
    );
-
-   $self->{g}{txt_host} = Wx::TextCtrl->new($p, wxID_ANY, $self->{v}{host});
+   # Output
    $self->{g}{txt_out} = Wx::TextCtrl->new($p, wxID_ANY, '', wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE);
+   # Execute
+   $self->{g}{btn_start} = Wx::Button->new($p, wxID_OK,     $_str{btn_start});
+   $self->{g}{btn_stop}  = Wx::Button->new($p, wxID_CANCEL, $_str{btn_stop});
+   $self->{g}{btn_clear} = Wx::Button->new($p, wxID_ANY,    $_str{btn_clear});
+   $self->{g}{btn_exit}  = Wx::Button->new($p, wxID_ANY,    $_str{btn_exit});
 
 
-   # start layout
-   $self->{g}{sbs_conn}->Add($self->{g}{lbl_host}, 0, wxALIGN_CENTER | wxALL, 3);
-   $self->{g}{sbs_conn}->Add($self->{g}{txt_host}, 1, wxEXPAND | wxALL, 3);
-   $self->{g}{sbs_conn}->Add($self->{g}{lbl_port}, 0, wxALIGN_CENTER | wxALL, 3);
+   ### Layout
+   $self->{g}{sbs_conn}->Add($self->{g}{lbl_host}, 0, wxALIGN_CENTER | wxALL,                          3);
+   $self->{g}{sbs_conn}->Add($self->{g}{txt_host}, 1, wxEXPAND | wxALL,                                3);
+   $self->{g}{sbs_conn}->Add($self->{g}{lbl_port}, 0, wxALIGN_CENTER | wxALL,                          3);
    $self->{g}{sbs_conn}->Add($self->{g}{spn_port}, 0, wxALIGN_CENTER_VERTICAL | wxALIGN_RIGHT | wxALL, 3);
 
    $self->{g}{sbs_data}->Add($self->{g}{lbl_data_size}, 0, wxALIGN_CENTER | wxALL, 3);
@@ -151,11 +140,11 @@ sub new {
    $self->{g}{sbs_data}->Add($self->{g}{lbl_chunk_size}, 0, wxALIGN_CENTER | wxALL, 3);
    $self->{g}{sbs_data}->Add($self->{g}{spn_chunk_size}, 0, wxALIGN_CENTER | wxALL, 3);
 
-   $self->{g}{sbs_dir}->Add($self->{g}{chk_up}, 0, wxALIGN_CENTER | wxALL, 3);
+   $self->{g}{sbs_dir}->Add($self->{g}{chk_up},   0, wxALIGN_CENTER | wxALL, 3);
    $self->{g}{sbs_dir}->Add($self->{g}{chk_down}, 0, wxALIGN_CENTER | wxALL, 3);
 
-   $self->{g}{sbs_opts}->Add($self->{g}{chk_inf}, 0, wxALIGN_CENTER | wxALL, 3);
-   $self->{g}{sbs_opts}->Add($self->{g}{chk_rep}, 0, wxALIGN_CENTER | wxALL, 3);
+   $self->{g}{sbs_opts}->Add($self->{g}{chk_inf},    0, wxALIGN_CENTER | wxALL, 3);
+   $self->{g}{sbs_opts}->Add($self->{g}{chk_rep},    0, wxALIGN_CENTER | wxALL, 3);
    $self->{g}{sbs_opts}->Add($self->{g}{spn_repeat}, 0, wxALIGN_CENTER | wxALL, 3);
    $self->{g}{sbs_opts}->AddStretchSpacer;
    $self->{g}{sbs_opts}->Add($self->{g}{lbl_interval}, 0, wxALIGN_CENTER | wxALL, 3);
@@ -164,21 +153,28 @@ sub new {
    $self->{g}{sbs_out}->Add($self->{g}{txt_out}, 1, wxEXPAND);
 
    $self->{g}{sbs_exec}->Add($self->{g}{btn_start}, 0, wxALIGN_CENTER | wxALL, 3);
-   $self->{g}{sbs_exec}->Add($self->{g}{btn_stop}, 0, wxALIGN_CENTER | wxALL, 3);
+   $self->{g}{sbs_exec}->Add($self->{g}{btn_stop},  0, wxALIGN_CENTER | wxALL, 3);
    $self->{g}{sbs_exec}->Add($self->{g}{btn_clear}, 0, wxALIGN_CENTER | wxALL, 3);
    $self->{g}{sbs_exec}->AddStretchSpacer;
    $self->{g}{sbs_exec}->Add($self->{g}{btn_exit}, 0, wxALIGN_RIGHT | wxALL, 3);
 
    $self->{g}{bs_panel}->Add($self->{g}{sbs_conn}, 0, wxEXPAND);
    $self->{g}{bs_panel}->Add($self->{g}{sbs_data}, 0, wxEXPAND);
-   $self->{g}{bs_panel}->Add($self->{g}{sbs_dir}, 0, wxEXPAND);
+   $self->{g}{bs_panel}->Add($self->{g}{sbs_dir},  0, wxEXPAND);
    $self->{g}{bs_panel}->Add($self->{g}{sbs_opts}, 0, wxEXPAND);
-   $self->{g}{bs_panel}->Add($self->{g}{sbs_out}, 1, wxEXPAND);
+   $self->{g}{bs_panel}->Add($self->{g}{sbs_out},  1, wxEXPAND);
    $self->{g}{bs_panel}->Add($self->{g}{sbs_exec}, 0, wxEXPAND);
 
    $p->SetSizer($self->{g}{bs_panel});
    $self->{g}{bs_frame}->Add($p, 1, wxEXPAND | wxALL, 5);
    $self->SetSizerAndFit($self->{g}{bs_frame});
+
+
+   ### Events
+   Wx::Event::EVT_BUTTON($self->{g}{btn_exit}, wxID_ANY, sub { $self->Close; });
+
+
+
    #...
    return $self;
 }
